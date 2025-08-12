@@ -1,18 +1,56 @@
 const express = require("express");
-const {register, login, getProfile, updateProfile} = require("../controllers/userController");
-const auth = require("../middleware/auth");
+const { check } = require("express-validator");
+const {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  changePassword,
+} = require("../controllers/userController");
+const { protect } = require("../middleware/auth");
+
 const router = express.Router();
 
-// User registration
-router.post("/register", register);
+// Register user
+router.post(
+  "/register",
+  [
+    check("username", "Username is required").notEmpty(),
+    check("email", "Please include a valid email").isEmail(),
+    check("password", "Password must be at least 6 characters").isLength({
+      min: 6,
+    }),
+  ],
+  register
+);
 
-// User login
-router.post("/login", login);
+// Login user
+router.post(
+  "/login",
+  [
+    check("email", "Please include a valid email").isEmail(),
+    check("password", "Password is required").notEmpty(),
+  ],
+  login
+);
 
 // Get user profile
-router.get("/profile", auth, getProfile);
+router.get("/profile", protect, getProfile);
 
 // Update user profile
-router.put("/update-profile", auth, updateProfile);
+router.put("/profile", protect, updateProfile);
+
+// Change password
+router.put(
+  "/change-password",
+  [
+    check("currentPassword", "Current password is required").notEmpty(),
+    check("newPassword", "New password must be at least 6 characters").isLength(
+      { min: 6 }
+    ),
+  ],
+  protect,
+  changePassword
+);
 
 module.exports = router;
