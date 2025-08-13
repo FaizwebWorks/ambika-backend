@@ -1,147 +1,391 @@
-const Category = require("../models/category");
-const { validationResult } = require("express-validator");
+const Category = require('../models/category');
+const Product = require('../models/product');
+const { deleteImage, extractPublicId } = require('../config/cloudinary');
 
 // Get all categories
-exports.getCategories = async (req, res) => {
+const getCategories = async (req, res) => {
   try {
-    const categories = await Category.find({ isActive: true });
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      status = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    // Build query
+    const query = {};
     
-    res.status(200).json({
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (status) {
+      query.isActive = status === 'active';
+    } else {
+      query.isActive = true; // Default to active categories
+    }
+
+    // Execute query with pagination
+    const categories = await Category.find(query)
+      .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
+      .limit(parseInt(limit))
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .lean();
+
+    // Get total count
+    const total = await Category.countDocuments(query);
+
+    // Add product count to each category
+    const categoriesWithProductCount = await Promise.all(
+      categories.map(async (category) => {
+        const productCount = await Product.countDocuments({ 
+          category: category._id
+        });
+        return {
+          ...category,
+          productCount
+        };
+      })
+    );
+
+    res.json({
       success: true,
-      count: categories.length,
-      categories
+      count: categoriesWithProductCount.length,
+      categories: categoriesWithProductCount,
+      data: {
+        categories: categoriesWithProductCount,
+        pagination: {
+          current: parseInt(page),
+          total: Math.ceil(total / parseInt(limit)),
+          count: categories.length,
+          totalItems: total
+        }
+      }
     });
   } catch (error) {
-    console.error("Get categories error:", error);
+    console.error('Get categories error:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while retrieving categories"
+      message: 'Error fetching categories',
+      error: error.message
     });
   }
 };
 
 // Get single category
-exports.getCategoryById = async (req, res) => {
+const getCategoryById = async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: "Category not found"
+        message: 'Category not found'
       });
     }
-    
-    res.status(200).json({
+
+    // Get product count
+    const productCount = await Product.countDocuments({ 
+      category: category._id
+    });
+
+    res.json({
       success: true,
-      category
+      category: {
+        ...category.toObject(),
+        productCount
+      }
     });
   } catch (error) {
-    console.error("Get category error:", error);
+    console.error('Get category error:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while retrieving category"
+      message: 'Error fetching category',
+      error: error.message
     });
   }
 };
 
 // Create category (Admin only)
-exports.createCategory = async (req, res) => {
+const createCategory = async (req, res) => {
   try {
-    // Validate request
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
-    }
-    
-    const { name, description, image } = req.body;
-    
-    // Check if category exists
-    const existingCategory = await Category.findOne({ name });
+    const { name, description, isActive = true } = req.body;
+
+    // Check if category already exists
+    const existingCategory = await Category.findOne({ 
+      name: { $regex: new RegExp(`^${name}$`, 'i') } 
+    });
+
     if (existingCategory) {
+      // If image was uploaded, delete it from Cloudinary
+      if (req.file) {
+        const publicId = extractPublicId(req.file.path);
+        if (publicId) {
+          await deleteImage(publicId);
+        }
+      }
+      
       return res.status(400).json({
         success: false,
-        message: "Category already exists"
+        message: 'Category with this name already exists'
       });
     }
-    
-    // Create category
-    const category = await Category.create({
+
+    // Create category data
+    const categoryData = {
       name,
       description,
-      image
-    });
-    
+      isActive
+    };
+
+    // Add image if uploaded
+    if (req.file) {
+      categoryData.image = req.file.path;
+    }
+
+    const category = new Category(categoryData);
+    await category.save();
+
     res.status(201).json({
       success: true,
+      message: 'Category created successfully',
       category
     });
   } catch (error) {
-    console.error("Create category error:", error);
+    console.error('Create category error:', error);
+    
+    // If image was uploaded, delete it from Cloudinary
+    if (req.file) {
+      const publicId = extractPublicId(req.file.path);
+      if (publicId) {
+        await deleteImage(publicId);
+      }
+    }
+
     res.status(500).json({
       success: false,
-      message: "Server error while creating category"
+      message: 'Error creating category',
+      error: error.message
     });
   }
 };
 
 // Update category (Admin only)
-exports.updateCategory = async (req, res) => {
+const updateCategory = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
-    
+    const { id } = req.params;
+    const { name, description, isActive } = req.body;
+
+    const category = await Category.findById(id);
     if (!category) {
+      // If new image was uploaded, delete it from Cloudinary
+      if (req.file) {
+        const publicId = extractPublicId(req.file.path);
+        if (publicId) {
+          await deleteImage(publicId);
+        }
+      }
+      
       return res.status(404).json({
         success: false,
-        message: "Category not found"
+        message: 'Category not found'
       });
     }
-    
-    // Update category
-    const updatedCategory = await Category.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    res.status(200).json({
+
+    // Check if new name conflicts with existing category
+    if (name && name !== category.name) {
+      const existingCategory = await Category.findOne({ 
+        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        _id: { $ne: id }
+      });
+
+      if (existingCategory) {
+        // If new image was uploaded, delete it from Cloudinary
+        if (req.file) {
+          const publicId = extractPublicId(req.file.path);
+          if (publicId) {
+            await deleteImage(publicId);
+          }
+        }
+        
+        return res.status(400).json({
+          success: false,
+          message: 'Category with this name already exists'
+        });
+      }
+    }
+
+    // Store old image URL for potential deletion
+    const oldImageUrl = category.image;
+
+    // Update category data
+    if (name) category.name = name;
+    if (description !== undefined) category.description = description;
+    if (isActive !== undefined) category.isActive = isActive;
+
+    // Update image if new one uploaded
+    if (req.file) {
+      category.image = req.file.path;
+    }
+
+    await category.save();
+
+    // Delete old image from Cloudinary if new image was uploaded
+    if (req.file && oldImageUrl) {
+      const oldPublicId = extractPublicId(oldImageUrl);
+      if (oldPublicId) {
+        await deleteImage(oldPublicId);
+      }
+    }
+
+    res.json({
       success: true,
-      category: updatedCategory
+      message: 'Category updated successfully',
+      category
     });
   } catch (error) {
-    console.error("Update category error:", error);
+    console.error('Update category error:', error);
+    
+    // If new image was uploaded, delete it from Cloudinary
+    if (req.file) {
+      const publicId = extractPublicId(req.file.path);
+      if (publicId) {
+        await deleteImage(publicId);
+      }
+    }
+
     res.status(500).json({
       success: false,
-      message: "Server error while updating category"
+      message: 'Error updating category',
+      error: error.message
     });
   }
 };
 
 // Delete category (Admin only)
-exports.deleteCategory = async (req, res) => {
+const deleteCategory = async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
-    
+    const { id } = req.params;
+
+    const category = await Category.findById(id);
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: "Category not found"
+        message: 'Category not found'
       });
     }
-    
-    // Soft delete by setting isActive to false
-    category.isActive = false;
-    await category.save();
-    
-    res.status(200).json({
+
+    // Check if category has products
+    const productCount = await Product.countDocuments({ category: id });
+    if (productCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete category. It has ${productCount} products associated with it. Please move or delete the products first.`
+      });
+    }
+
+    // Delete image from Cloudinary if exists
+    if (category.image) {
+      const publicId = extractPublicId(category.image);
+      if (publicId) {
+        await deleteImage(publicId);
+      }
+    }
+
+    await Category.findByIdAndDelete(id);
+
+    res.json({
       success: true,
-      message: "Category deleted successfully"
+      message: 'Category deleted successfully'
     });
   } catch (error) {
-    console.error("Delete category error:", error);
+    console.error('Delete category error:', error);
     res.status(500).json({
       success: false,
-      message: "Server error while deleting category"
+      message: 'Error deleting category',
+      error: error.message
     });
   }
+};
+
+// Bulk operations
+const bulkUpdateCategories = async (req, res) => {
+  try {
+    const { operations } = req.body;
+
+    if (!operations || !Array.isArray(operations)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Operations array is required'
+      });
+    }
+
+    const results = [];
+
+    for (const operation of operations) {
+      try {
+        const { action, categoryId, data } = operation;
+
+        switch (action) {
+          case 'update':
+            await Category.findByIdAndUpdate(categoryId, data);
+            results.push({ categoryId, status: 'updated' });
+            break;
+          
+          case 'delete':
+            const productCount = await Product.countDocuments({ category: categoryId });
+            if (productCount === 0) {
+              const category = await Category.findById(categoryId);
+              if (category?.image) {
+                const publicId = extractPublicId(category.image);
+                if (publicId) {
+                  await deleteImage(publicId);
+                }
+              }
+              await Category.findByIdAndDelete(categoryId);
+              results.push({ categoryId, status: 'deleted' });
+            } else {
+              results.push({ categoryId, status: 'error', message: 'Has products' });
+            }
+            break;
+          
+          default:
+            results.push({ categoryId, status: 'error', message: 'Invalid action' });
+        }
+      } catch (error) {
+        results.push({ 
+          categoryId: operation.categoryId, 
+          status: 'error', 
+          message: error.message 
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Bulk operations completed',
+      data: { results }
+    });
+  } catch (error) {
+    console.error('Bulk operations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error performing bulk operations',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  getCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  bulkUpdateCategories
 };

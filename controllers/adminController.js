@@ -1,0 +1,657 @@
+const Product = require("../models/product");
+const Category = require("../models/category");
+const Order = require("../models/order");
+const User = require("../models/user");
+const Analytics = require("../models/analytics");
+const mongoose = require("mongoose");
+
+// Dashboard analytics
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    // Get current month stats
+    const currentMonthOrders = await Order.find({
+      createdAt: { $gte: startOfMonth }
+    });
+
+    // Get last month stats for comparison
+    const lastMonthOrders = await Order.find({
+      createdAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+    });
+
+    // Calculate current month revenue
+    const currentMonthRevenue = currentMonthOrders.reduce((sum, order) => 
+      order.payment.status === 'completed' ? sum + order.pricing.total : sum, 0
+    );
+
+    // Calculate last month revenue
+    const lastMonthRevenue = lastMonthOrders.reduce((sum, order) => 
+      order.payment.status === 'completed' ? sum + order.pricing.total : sum, 0
+    );
+
+    // Calculate growth percentages
+    const revenueGrowth = lastMonthRevenue === 0 ? 100 : 
+      ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+    
+    const ordersGrowth = lastMonthOrders.length === 0 ? 100 :
+      ((currentMonthOrders.length - lastMonthOrders.length) / lastMonthOrders.length) * 100;
+
+    // Get total counts
+    const totalProducts = await Product.countDocuments({ isActive: true });
+    const totalUsers = await User.countDocuments({ role: 'user' });
+
+    // Get recent orders
+    const recentOrders = await Order.find()
+      .populate('customer', 'name email')
+      .populate('items.product', 'title')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Get top products this month
+    const topProducts = await Order.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          totalQuantity: { $sum: '$items.quantity' },
+          totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+        }
+      },
+      { $sort: { totalQuantity: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'productInfo'
+        }
+      },
+      { $unwind: '$productInfo' }
+    ]);
+
+    // Get daily sales data for the last 30 days
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const dailySales = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+          'payment.status': 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+          },
+          revenue: { $sum: '$pricing.total' },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Get category performance
+    const categoryPerformance = await Order.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $unwind: '$items' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.product',
+          foreignField: '_id',
+          as: 'productInfo'
+        }
+      },
+      { $unwind: '$productInfo' },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'productInfo.category',
+          foreignField: '_id',
+          as: 'categoryInfo'
+        }
+      },
+      { $unwind: '$categoryInfo' },
+      {
+        $group: {
+          _id: '$categoryInfo._id',
+          name: { $first: '$categoryInfo.name' },
+          revenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } },
+          orders: { $sum: 1 }
+        }
+      },
+      { $sort: { revenue: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        stats: {
+          revenue: {
+            current: currentMonthRevenue,
+            growth: revenueGrowth
+          },
+          orders: {
+            current: currentMonthOrders.length,
+            growth: ordersGrowth
+          },
+          products: totalProducts,
+          users: totalUsers
+        },
+        recentOrders,
+        topProducts,
+        dailySales,
+        categoryPerformance
+      }
+    });
+
+  } catch (error) {
+    console.error("Dashboard stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching dashboard statistics"
+    });
+  }
+};
+
+// Get all products for admin with enhanced filtering
+exports.getAdminProducts = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      category,
+      status,
+      stockStatus,
+      sort = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    if (status && status !== 'all') {
+      query.isActive = status === 'active';
+    }
+
+    if (stockStatus && stockStatus !== 'all') {
+      if (stockStatus === 'outOfStock') {
+        query.stock = 0;
+      } else if (stockStatus === 'lowStock') {
+        query.stock = { $gt: 0, $lte: 10 };
+      } else if (stockStatus === 'inStock') {
+        query.stock = { $gt: 10 };
+      }
+    }
+
+    // Execute query
+    const products = await Product.find(query)
+      .populate('category', 'name')
+      .sort({ [sort]: order === 'desc' ? -1 : 1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    const total = await Product.countDocuments(query);
+
+    // Add additional stats for each product
+    const productsWithStats = await Promise.all(
+      products.map(async (product) => {
+        const orderStats = await Order.aggregate([
+          { $unwind: '$items' },
+          { $match: { 'items.product': product._id } },
+          {
+            $group: {
+              _id: null,
+              totalOrders: { $sum: 1 },
+              totalQuantity: { $sum: '$items.quantity' },
+              totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
+            }
+          }
+        ]);
+
+        const stats = orderStats[0] || { totalOrders: 0, totalQuantity: 0, totalRevenue: 0 };
+
+        return {
+          ...product.toObject(),
+          stats
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        products: productsWithStats,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+          hasNext: Number(page) < Math.ceil(total / Number(limit)),
+          hasPrev: Number(page) > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get admin products error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching products"
+    });
+  }
+};
+
+// Get all orders for admin with enhanced filtering
+exports.getAdminOrders = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      paymentStatus,
+      dateFrom,
+      dateTo,
+      sort = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { orderNumber: { $regex: search, $options: 'i' } },
+        { 'customerInfo.name': { $regex: search, $options: 'i' } },
+        { 'customerInfo.email': { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (paymentStatus && paymentStatus !== 'all') {
+      query['payment.status'] = paymentStatus;
+    }
+
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
+    }
+
+    // Execute query
+    const orders = await Order.find(query)
+      .populate('customer', 'name email phone')
+      .populate('items.product', 'title images')
+      .sort({ [sort]: order === 'desc' ? -1 : 1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    const total = await Order.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        orders,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+          hasNext: Number(page) < Math.ceil(total / Number(limit)),
+          hasPrev: Number(page) > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get admin orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching orders"
+    });
+  }
+};
+
+// Update order status
+exports.updateOrderStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes, trackingNumber } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Update order
+    const updateData = { status };
+    if (adminNotes) updateData.adminNotes = adminNotes;
+    if (trackingNumber) updateData['shipping.trackingNumber'] = trackingNumber;
+
+    // Set shipped date if status is shipped
+    if (status === 'shipped') {
+      updateData['shipping.shippedAt'] = new Date();
+    }
+
+    // Set delivered date if status is delivered
+    if (status === 'delivered') {
+      updateData['shipping.deliveredAt'] = new Date();
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      id,
+      {
+        $set: updateData,
+        $push: {
+          statusHistory: {
+            status,
+            updatedBy: req.user.id,
+            updatedAt: new Date(),
+            note: adminNotes
+          }
+        }
+      },
+      { new: true }
+    ).populate('customer', 'name email');
+
+    res.status(200).json({
+      success: true,
+      data: updatedOrder
+    });
+
+  } catch (error) {
+    console.error("Update order status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating order status"
+    });
+  }
+};
+
+// Get all customers for admin
+exports.getAdminCustomers = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      sort = 'createdAt',
+      order = 'desc'
+    } = req.query;
+
+    // Build query
+    const query = { role: 'user' };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { username: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Execute query
+    const customers = await User.find(query)
+      .select('-password')
+      .sort({ [sort]: order === 'desc' ? -1 : 1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    const total = await User.countDocuments(query);
+
+    // Add order statistics for each customer
+    const customersWithStats = await Promise.all(
+      customers.map(async (customer) => {
+        const orderStats = await Order.aggregate([
+          { $match: { customer: customer._id } },
+          {
+            $group: {
+              _id: null,
+              totalOrders: { $sum: 1 },
+              totalSpent: { $sum: '$pricing.total' },
+              lastOrderDate: { $max: '$createdAt' }
+            }
+          }
+        ]);
+
+        const stats = orderStats[0] || { totalOrders: 0, totalSpent: 0, lastOrderDate: null };
+
+        return {
+          ...customer.toObject(),
+          stats: {
+            ...stats,
+            avgOrderValue: stats.totalOrders > 0 ? stats.totalSpent / stats.totalOrders : 0
+          }
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        customers: customersWithStats,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+          hasNext: Number(page) < Math.ceil(total / Number(limit)),
+          hasPrev: Number(page) > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get admin customers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching customers"
+    });
+  }
+};
+
+// Get all categories for admin
+exports.getAdminCategories = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      sort = 'name',
+      order = 'asc'
+    } = req.query;
+
+    // Build query
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Execute query
+    const categories = await Category.find(query)
+      .sort({ [sort]: order === 'desc' ? -1 : 1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    const total = await Category.countDocuments(query);
+
+    // Add statistics for each category
+    const categoriesWithStats = await Promise.all(
+      categories.map(async (category) => {
+        const productCount = await Product.countDocuments({ 
+          category: category._id, 
+          isActive: true 
+        });
+
+        // Get sales data for this category
+        const salesStats = await Order.aggregate([
+          { $unwind: '$items' },
+          {
+            $lookup: {
+              from: 'products',
+              localField: 'items.product',
+              foreignField: '_id',
+              as: 'product'
+            }
+          },
+          { $unwind: '$product' },
+          { $match: { 'product.category': category._id } },
+          {
+            $group: {
+              _id: null,
+              totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } },
+              totalOrders: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const stats = salesStats[0] || { totalRevenue: 0, totalOrders: 0 };
+
+        return {
+          ...category.toObject(),
+          stats: {
+            productCount,
+            totalRevenue: stats.totalRevenue,
+            totalOrders: stats.totalOrders
+          }
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        categories: categoriesWithStats,
+        pagination: {
+          current: Number(page),
+          pages: Math.ceil(total / Number(limit)),
+          total,
+          hasNext: Number(page) < Math.ceil(total / Number(limit)),
+          hasPrev: Number(page) > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get admin categories error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching categories"
+    });
+  }
+};
+
+// Bulk update products
+exports.bulkUpdateProducts = async (req, res) => {
+  try {
+    const { productIds, updates } = req.body;
+
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Product IDs are required"
+      });
+    }
+
+    const result = await Product.updateMany(
+      { _id: { $in: productIds } },
+      { $set: updates }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `${result.modifiedCount} products updated successfully`,
+      data: result
+    });
+
+  } catch (error) {
+    console.error("Bulk update products error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating products"
+    });
+  }
+};
+
+// Export data
+exports.exportData = async (req, res) => {
+  try {
+    const { type, dateFrom, dateTo } = req.query;
+    
+    let data = [];
+    const dateQuery = {};
+    
+    if (dateFrom) dateQuery.$gte = new Date(dateFrom);
+    if (dateTo) dateQuery.$lte = new Date(dateTo);
+    
+    switch (type) {
+      case 'orders':
+        data = await Order.find(dateQuery.hasOwnProperty('$gte') || dateQuery.hasOwnProperty('$lte') 
+          ? { createdAt: dateQuery } : {})
+          .populate('customer', 'name email')
+          .populate('items.product', 'title')
+          .lean();
+        break;
+        
+      case 'products':
+        data = await Product.find({})
+          .populate('category', 'name')
+          .lean();
+        break;
+        
+      case 'customers':
+        data = await User.find({ role: 'user' })
+          .select('-password')
+          .lean();
+        break;
+        
+      default:
+        return res.status(400).json({
+          success: false,
+          message: "Invalid export type"
+        });
+    }
+
+    res.status(200).json({
+      success: true,
+      data,
+      count: data.length
+    });
+
+  } catch (error) {
+    console.error("Export data error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error exporting data"
+    });
+  }
+};
+
+module.exports = exports;
