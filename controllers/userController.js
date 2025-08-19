@@ -1,4 +1,6 @@
 const User = require("../models/user");
+const Wishlist = require("../models/wishlist");
+const Product = require("../models/product");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
@@ -199,4 +201,153 @@ const generateToken = (id, role) => {
   return jwt.sign({ userId: id, role }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
+};
+
+// Get user wishlist
+exports.getWishlist = async (req, res) => {
+  try {
+    let wishlist = await Wishlist.findOne({ user: req.user._id }).populate({
+      path: "items.product",
+      select: "name title price discountPrice images category stock",
+      populate: {
+        path: "category",
+        select: "name",
+      },
+    });
+
+    // If no wishlist exists, create an empty one
+    if (!wishlist) {
+      wishlist = await Wishlist.create({ user: req.user._id, items: [] });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: wishlist.items,
+        totalItems: wishlist.items.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get wishlist error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while retrieving wishlist",
+    });
+  }
+};
+
+// Add product to wishlist
+exports.addToWishlist = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    // Check if product exists
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Find or create wishlist
+    let wishlist = await Wishlist.findOne({ user: req.user._id });
+    if (!wishlist) {
+      wishlist = await Wishlist.create({ user: req.user._id, items: [] });
+    }
+
+    // Check if product already in wishlist
+    if (wishlist.hasProduct(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Product already in wishlist",
+      });
+    }
+
+    // Add product to wishlist
+    wishlist.items.push({ product: productId });
+    await wishlist.save();
+
+    // Populate the wishlist for response
+    await wishlist.populate({
+      path: "items.product",
+      select: "name title price discountPrice images category",
+      populate: {
+        path: "category",
+        select: "name",
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Product added to wishlist",
+      data: {
+        items: wishlist.items,
+        totalItems: wishlist.items.length,
+      },
+    });
+  } catch (error) {
+    console.error("Add to wishlist error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while adding to wishlist",
+    });
+  }
+};
+
+// Remove product from wishlist
+exports.removeFromWishlist = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    // Find wishlist
+    const wishlist = await Wishlist.findOne({ user: req.user._id });
+    if (!wishlist) {
+      return res.status(404).json({
+        success: false,
+        message: "Wishlist not found",
+      });
+    }
+
+    // Check if product exists in wishlist
+    const itemIndex = wishlist.items.findIndex(
+      item => item.product.toString() === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found in wishlist",
+      });
+    }
+
+    // Remove product from wishlist
+    wishlist.items.splice(itemIndex, 1);
+    await wishlist.save();
+
+    // Populate the wishlist for response
+    await wishlist.populate({
+      path: "items.product",
+      select: "name title price discountPrice images category",
+      populate: {
+        path: "category",
+        select: "name",
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Product removed from wishlist",
+      data: {
+        items: wishlist.items,
+        totalItems: wishlist.items.length,
+      },
+    });
+  } catch (error) {
+    console.error("Remove from wishlist error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while removing from wishlist",
+    });
+  }
 };

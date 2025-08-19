@@ -257,8 +257,33 @@ const updateProduct = async (req, res) => {
       updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img));
     }
 
-    // Add new images
-    updatedImages = [...updatedImages, ...newImages];
+    // Add new images only if they don't already exist (prevent duplicates)
+    if (newImages.length > 0) {
+      // Filter out any new images that already exist in the current images
+      const uniqueNewImages = newImages.filter(newImg => {
+        // Extract filename or public ID to compare
+        const newImgPublicId = extractPublicId(newImg);
+        return !updatedImages.some(existingImg => {
+          const existingImgPublicId = extractPublicId(existingImg);
+          return newImgPublicId === existingImgPublicId;
+        });
+      });
+      
+      // Only add truly new images
+      updatedImages = [...updatedImages, ...uniqueNewImages];
+      
+      // If we filtered out duplicates, clean up the duplicate files from Cloudinary
+      const duplicateImages = newImages.filter(newImg => !uniqueNewImages.includes(newImg));
+      for (const duplicateImg of duplicateImages) {
+        try {
+          const publicId = extractPublicId(duplicateImg);
+          await deleteImage(publicId);
+          console.log(`Removed duplicate image: ${publicId}`);
+        } catch (cleanupError) {
+          console.error("Error cleaning up duplicate image:", cleanupError);
+        }
+      }
+    }
 
     // Process tags
     const processedTags = typeof tags === 'string' 
@@ -315,6 +340,7 @@ const updateProduct = async (req, res) => {
     console.error("Update product error:", error);
     
     // Clean up newly uploaded images if update fails
+    // But only clean up the unique new images, not duplicates that were already cleaned up
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         try {

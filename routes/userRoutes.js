@@ -6,6 +6,9 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist,
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -52,5 +55,10 @@ router.put(
   protect,
   changePassword
 );
+
+// Wishlist routes
+router.get("/wishlist", protect, getWishlist);
+router.post("/wishlist/add/:productId", protect, addToWishlist);
+router.delete("/wishlist/remove/:productId", protect, removeFromWishlist);
 
 module.exports = router;
