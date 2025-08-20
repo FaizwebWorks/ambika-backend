@@ -10,16 +10,54 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // B2C pricing
   price: {
     type: Number,
     required: true,
     min: 0
+  },
+  // B2B pricing structure
+  b2bPricing: {
+    enabled: {
+      type: Boolean,
+      default: true
+    },
+    showPriceToGuests: {
+      type: Boolean,
+      default: false
+    },
+    priceOnRequest: {
+      type: Boolean,
+      default: true
+    },
+    bulkPricing: [
+      {
+        minQuantity: {
+          type: Number,
+          required: true
+        },
+        maxQuantity: Number,
+        pricePerUnit: {
+          type: Number,
+          required: true
+        },
+        discount: {
+          type: Number,
+          default: 0
+        }
+      }
+    ]
   },
   stock: {
     type: Number,
     required: true,
     min: 0
   },
+  minOrderQuantity: {
+    type: Number,
+    default: 1
+  },
+  maxOrderQuantity: Number,
   images: [
     {
       type: String, // URL to image
@@ -47,6 +85,17 @@ const productSchema = new mongoose.Schema({
       value: { type: String }  // e.g., "Red", "Steel"
     }
   ],
+  // Product specifications for B2B
+  specifications: {
+    material: String,
+    dimensions: String,
+    weight: String,
+    warranty: String,
+    certifications: [String],
+    features: [String],
+    usage: String,
+    packaging: String
+  },
   featured: {
     type: Boolean,
     default: false
@@ -68,6 +117,12 @@ const productSchema = new mongoose.Schema({
   numReviews: {
     type: Number,
     default: 0
+  },
+  // Target customer types
+  targetCustomers: {
+    type: [String],
+    enum: ["B2C", "B2B"],
+    default: ["B2C", "B2B"]
   }
 }, { timestamps: true });
 

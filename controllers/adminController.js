@@ -410,7 +410,9 @@ exports.getAdminCustomers = async (req, res) => {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { username: { $regex: search, $options: 'i' } }
+        { username: { $regex: search, $options: 'i' } },
+        { 'businessDetails.companyName': { $regex: search, $options: 'i' } },
+        { address: { $regex: search, $options: 'i' } }
       ];
     }
 
@@ -650,6 +652,334 @@ exports.exportData = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error exporting data"
+    });
+  }
+};
+
+// Approve B2B customer
+exports.approveCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    // Find the customer
+    const customer = await User.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found"
+      });
+    }
+
+    // Check if customer is B2B
+    if (customer.customerType !== 'B2B') {
+      return res.status(400).json({
+        success: false,
+        message: "Only B2B customers require approval"
+      });
+    }
+
+    // Update approval status
+    customer.approvalStatus = 'approved';
+    customer.approvedAt = new Date();
+    customer.approvedBy = req.user._id;
+    await customer.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Customer approved successfully",
+      data: {
+        id: customer._id,
+        name: customer.name,
+        email: customer.email,
+        approvalStatus: customer.approvalStatus,
+        approvedAt: customer.approvedAt
+      }
+    });
+
+  } catch (error) {
+    console.error("Approve customer error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error approving customer"
+    });
+  }
+};
+
+// Reject B2B customer
+exports.rejectCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { reason } = req.body;
+
+    // Find the customer
+    const customer = await User.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found"
+      });
+    }
+
+    // Check if customer is B2B
+    if (customer.customerType !== 'B2B') {
+      return res.status(400).json({
+        success: false,
+        message: "Only B2B customers require approval"
+      });
+    }
+
+    // Update approval status
+    customer.approvalStatus = 'rejected';
+    customer.rejectedAt = new Date();
+    customer.rejectedBy = req.user._id;
+    customer.rejectionReason = reason || 'No reason provided';
+    await customer.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Customer rejected successfully",
+      data: {
+        id: customer._id,
+        name: customer.name,
+        email: customer.email,
+        approvalStatus: customer.approvalStatus,
+        rejectedAt: customer.rejectedAt,
+        rejectionReason: customer.rejectionReason
+      }
+    });
+
+  } catch (error) {
+    console.error("Reject customer error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error rejecting customer"
+    });
+  }
+};
+
+// Get customer details by ID
+exports.getCustomerById = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const customer = await User.findById(customerId).select('-password');
+    if (!customer || customer.role !== 'user') {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found"
+      });
+    }
+
+    // Get order statistics
+    const orderStats = await Order.aggregate([
+      { $match: { customer: customer._id } },
+      {
+        $group: {
+          _id: null,
+          totalOrders: { $sum: 1 },
+          totalSpent: { $sum: '$pricing.total' },
+          lastOrderDate: { $max: '$createdAt' }
+        }
+      }
+    ]);
+
+    const stats = orderStats[0] || { totalOrders: 0, totalSpent: 0, lastOrderDate: null };
+
+    // Get recent orders
+    const recentOrders = await Order.find({ customer: customer._id })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('_id orderNumber totalAmount status createdAt');
+
+    res.status(200).json({
+      success: true,
+      data: {
+        customer: {
+          ...customer.toObject(),
+          stats: {
+            ...stats,
+            avgOrderValue: stats.totalOrders > 0 ? stats.totalSpent / stats.totalOrders : 0
+          }
+        },
+        recentOrders
+      }
+    });
+
+  } catch (error) {
+    console.error("Get customer by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching customer details"
+    });
+  }
+};
+
+// User Management Functions
+exports.getAllUsers = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const role = req.query.role || '';
+    const skip = (page - 1) * limit;
+
+    // Build query
+    let query = {};
+    
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (role && role !== 'all') {
+      query.role = role;
+    }
+
+    // Get users with pagination
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Get total count for pagination
+    const totalUsers = await User.countDocuments(query);
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    // Get role statistics
+    const roleStats = await User.aggregate([
+      {
+        $group: {
+          _id: '$role',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = {
+      total: totalUsers,
+      admin: roleStats.find(stat => stat._id === 'admin')?.count || 0,
+      user: roleStats.find(stat => stat._id === 'user')?.count || 0
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        users,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalUsers,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        },
+        stats
+      }
+    });
+  } catch (error) {
+    console.error("Error getting users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users",
+      error: error.message
+    });
+  }
+};
+
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role. Must be 'user' or 'admin'"
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Prevent self-demotion from admin
+    if (user._id.toString() === req.user.id && role === 'user') {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot remove admin privileges from yourself"
+      });
+    }
+
+    // Update user role
+    user.role = role;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `User role updated to ${role} successfully`,
+      data: {
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          updatedAt: user.updatedAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating user role",
+      error: error.message
+    });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Prevent self-deletion
+    if (user._id.toString() === req.user.id) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot delete your own account"
+      });
+    }
+
+    // Delete user
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "User deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting user",
+      error: error.message
     });
   }
 };

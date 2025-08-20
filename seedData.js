@@ -27,7 +27,9 @@ const users = [
     password: "admin123",
     role: "admin",
     name: "Admin User",
-    phone: "+91 98765 43210"
+    phone: "+91 98765 43210",
+    customerType: "B2C",
+    approvalStatus: "approved"
   },
   {
     username: "rajesh.hotel",
@@ -36,7 +38,21 @@ const users = [
     role: "user",
     name: "Rajesh Kumar",
     phone: "+91 98765 43211",
-    address: "Hotel Paradise, Mumbai, Maharashtra"
+    address: "Hotel Paradise, Mumbai, Maharashtra",
+    customerType: "B2B",
+    approvalStatus: "approved",
+    businessDetails: {
+      companyName: "Hotel Paradise",
+      businessType: "Hotel",
+      gstNumber: "GST123456789",
+      businessAddress: "123 Business District, Mumbai",
+      contactPerson: "Rajesh Kumar",
+      designation: "General Manager",
+      businessPhone: "+91 98765 43211",
+      businessEmail: "rajesh@hotelparadise.com",
+      annualRequirement: "₹10-15 Lakhs",
+      isVerified: true
+    }
   },
   {
     username: "priya.resort",
@@ -45,7 +61,21 @@ const users = [
     role: "user",
     name: "Priya Sharma",
     phone: "+91 87654 32109",
-    address: "Beach Resort, Goa"
+    address: "Beach Resort, Goa",
+    customerType: "B2B",
+    approvalStatus: "pending",
+    businessDetails: {
+      companyName: "Beach Resort",
+      businessType: "Resort",
+      gstNumber: "GST987654321",
+      businessAddress: "456 Beach Road, Goa",
+      contactPerson: "Priya Sharma",
+      designation: "Operations Manager",
+      businessPhone: "+91 87654 32109",
+      businessEmail: "priya@beachresort.com",
+      annualRequirement: "₹5-8 Lakhs",
+      isVerified: false
+    }
   },
   {
     username: "hotel.manager",
@@ -54,7 +84,78 @@ const users = [
     role: "user",
     name: "Hotel Manager",
     phone: "+91 76543 21098",
-    address: "Grand Plaza Hotel, Delhi"
+    address: "Grand Plaza Hotel, Delhi",
+    customerType: "B2B",
+    approvalStatus: "approved",
+    businessDetails: {
+      companyName: "Grand Plaza Hotel",
+      businessType: "Hotel",
+      gstNumber: "GST456789123",
+      businessAddress: "789 Hotel Street, Delhi",
+      contactPerson: "Hotel Manager",
+      designation: "Purchase Manager",
+      businessPhone: "+91 76543 21098",
+      businessEmail: "manager@grandplaza.com",
+      annualRequirement: "₹20-25 Lakhs",
+      isVerified: true
+    }
+  },
+  {
+    username: "john.doe",
+    email: "john@personal.com",
+    password: "password123",
+    role: "user",
+    name: "John Doe",
+    phone: "+91 65432 10987",
+    address: "Bangalore, Karnataka",
+    customerType: "B2C",
+    approvalStatus: "approved"
+  },
+  {
+    username: "cityinn.manager",
+    email: "admin@cityinn.com",
+    password: "password123",
+    role: "user",
+    name: "City Inn Manager",
+    phone: "+91 54321 09876",
+    address: "Chennai, Tamil Nadu",
+    customerType: "B2B",
+    approvalStatus: "rejected",
+    businessDetails: {
+      companyName: "City Inn Hotel",
+      businessType: "Inn",
+      gstNumber: "GST321654987",
+      businessAddress: "321 Inn Road, Chennai",
+      contactPerson: "City Inn Manager",
+      designation: "Manager",
+      businessPhone: "+91 54321 09876",
+      businessEmail: "admin@cityinn.com",
+      annualRequirement: "₹3-5 Lakhs",
+      isVerified: false
+    }
+  },
+  {
+    username: "newhotel.corp",
+    email: "info@newhotel.com",
+    password: "password123",
+    role: "user",
+    name: "New Hotel Corp",
+    phone: "+91 99988 77766",
+    address: "Pune, Maharashtra",
+    customerType: "B2B",
+    approvalStatus: "pending",
+    businessDetails: {
+      companyName: "New Hotel Corporation",
+      businessType: "Hotel",
+      gstNumber: "GST111222333",
+      businessAddress: "999 Corporate Plaza, Pune",
+      contactPerson: "Amit Patel",
+      designation: "Procurement Head",
+      businessPhone: "+91 99988 77766",
+      businessEmail: "info@newhotel.com",
+      annualRequirement: "₹15-20 Lakhs",
+      isVerified: false
+    }
   }
 ];
 

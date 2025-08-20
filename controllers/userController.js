@@ -1,9 +1,102 @@
 const User = require("../models/user");
 const Wishlist = require("../models/wishlist");
 const Product = require("../models/product");
+const QuoteRequest = require("../models/quoteRequest");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
+
+// Register B2B user
+exports.registerB2B = async (req, res) => {
+  try {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { 
+      username, 
+      email, 
+      password, 
+      name,
+      phone,
+      companyName,
+      businessType,
+      gstNumber,
+      businessAddress,
+      contactPerson,
+      designation,
+      businessPhone,
+      businessEmail,
+      annualRequirement
+    } = req.body;
+
+    // Check if user exists
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message:
+          existingUser.email === email
+            ? "Email already in use"
+            : "Username already taken",
+      });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create B2B user
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      name: name || username,
+      phone,
+      customerType: "B2B",
+      approvalStatus: "pending",
+      businessDetails: {
+        companyName,
+        businessType,
+        gstNumber,
+        businessAddress,
+        contactPerson,
+        designation,
+        businessPhone,
+        businessEmail,
+        annualRequirement,
+        isVerified: false
+      }
+    });
+
+    // Generate token
+    const token = generateToken(user._id, user.role);
+
+    res.status(201).json({
+      success: true,
+      token,
+      message: "B2B registration successful. Your account is pending approval.",
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        customerType: user.customerType,
+        approvalStatus: user.approvalStatus,
+        businessDetails: user.businessDetails
+      },
+    });
+  } catch (error) {
+    console.error("B2B Registration error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during B2B registration",
+    });
+  }
+};
 
 // Register user
 exports.register = async (req, res) => {
@@ -38,6 +131,8 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       name: name || username,
+      customerType: "B2C", // Default to B2C for regular registration
+      approvalStatus: "approved" // B2C users are auto-approved
     });
 
     // Generate token
@@ -52,6 +147,8 @@ exports.register = async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        customerType: user.customerType,
+        approvalStatus: user.approvalStatus
       },
     });
   } catch (error) {
@@ -104,6 +201,9 @@ exports.login = async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        customerType: user.customerType,
+        approvalStatus: user.approvalStatus,
+        businessDetails: user.businessDetails
       },
     });
   } catch (error) {
@@ -348,6 +448,157 @@ exports.removeFromWishlist = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error while removing from wishlist",
+    });
+  }
+};
+
+// Create quote request (B2B only)
+exports.createQuoteRequest = async (req, res) => {
+  try {
+    // Check if user is B2B
+    if (req.user.customerType !== "B2B") {
+      return res.status(403).json({
+        success: false,
+        message: "Quote requests are only available for B2B customers",
+      });
+    }
+
+    // Check if user is approved
+    if (req.user.approvalStatus !== "approved") {
+      return res.status(403).json({
+        success: false,
+        message: "Your B2B account needs to be approved before requesting quotes",
+      });
+    }
+
+    const {
+      items,
+      deliveryAddress,
+      deliveryTimeline,
+      additionalRequirements,
+      businessJustification,
+      budgetRange
+    } = req.body;
+
+    // Validate items
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one item is required for quote request",
+      });
+    }
+
+    // Create quote request
+    const quoteRequest = await QuoteRequest.create({
+      user: req.user._id,
+      items,
+      deliveryAddress,
+      deliveryTimeline,
+      additionalRequirements,
+      businessJustification,
+      budgetRange,
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+    });
+
+    // Populate the quote request for response
+    await quoteRequest.populate([
+      {
+        path: "items.product",
+        select: "title images category price"
+      },
+      {
+        path: "user",
+        select: "name email businessDetails.companyName"
+      }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: "Quote request created successfully",
+      data: quoteRequest
+    });
+  } catch (error) {
+    console.error("Create quote request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating quote request",
+    });
+  }
+};
+
+// Get user's quote requests
+exports.getQuoteRequests = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const quoteRequests = await QuoteRequest.find({ user: req.user._id })
+      .populate([
+        {
+          path: "items.product",
+          select: "title images category price"
+        }
+      ])
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip);
+
+    const totalQuoteRequests = await QuoteRequest.countDocuments({ user: req.user._id });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        quoteRequests,
+        totalQuoteRequests,
+        currentPage: page,
+        totalPages: Math.ceil(totalQuoteRequests / limit)
+      }
+    });
+  } catch (error) {
+    console.error("Get quote requests error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while retrieving quote requests",
+    });
+  }
+};
+
+// Get single quote request
+exports.getQuoteRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const quoteRequest = await QuoteRequest.findOne({
+      _id: id,
+      user: req.user._id
+    }).populate([
+      {
+        path: "items.product",
+        select: "title images category price specifications"
+      },
+      {
+        path: "quotedBy",
+        select: "name email"
+      }
+    ]);
+
+    if (!quoteRequest) {
+      return res.status(404).json({
+        success: false,
+        message: "Quote request not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: quoteRequest
+    });
+  } catch (error) {
+    console.error("Get quote request error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while retrieving quote request",
     });
   }
 };
