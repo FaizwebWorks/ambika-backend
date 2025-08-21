@@ -1,5 +1,6 @@
 const Product = require('../models/product');
 const Category = require('../models/category');
+const NotificationService = require('../services/notificationService');
 const { deleteImage, extractPublicId } = require('../config/cloudinary');
 
 // Get all products with filtering and pagination
@@ -482,11 +483,42 @@ const bulkUpdateProducts = async (req, res) => {
   }
 };
 
+// Check for low stock and create notifications
+const checkLowStock = async () => {
+  try {
+    const lowStockThreshold = 10; // Configure this as needed
+    
+    const lowStockProducts = await Product.find({
+      stock: { $lte: lowStockThreshold },
+      status: 'active'
+    });
+
+    for (const product of lowStockProducts) {
+      // Check if we already have a recent notification for this product
+      const existingNotification = await require('../models/notification').findOne({
+        type: 'low_stock',
+        'data.productId': product._id,
+        createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Within last 24 hours
+      });
+
+      if (!existingNotification) {
+        await NotificationService.createLowStockNotification(product, product.stock, lowStockThreshold);
+      }
+    }
+
+    return lowStockProducts.length;
+  } catch (error) {
+    console.error('Error checking low stock:', error);
+    return 0;
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
-  bulkUpdateProducts
+  bulkUpdateProducts,
+  checkLowStock
 };

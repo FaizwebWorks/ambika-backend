@@ -2,13 +2,10 @@ const express = require("express");
 const router = express.Router();
 const adminController = require("../controllers/adminController");
 const { protect, admin } = require("../middleware/auth");
-const { checkSubscriptionWithGrace } = require("../middleware/subscription");
 
 // Apply auth middleware to all admin routes
 router.use(protect);
 router.use(admin);
-// Check subscription for admin access (with grace period)
-router.use(checkSubscriptionWithGrace);
 
 // Dashboard and Analytics
 router.get("/dashboard/stats", adminController.getDashboardStats);

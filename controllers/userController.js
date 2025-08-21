@@ -2,6 +2,7 @@ const User = require("../models/user");
 const Wishlist = require("../models/wishlist");
 const Product = require("../models/product");
 const QuoteRequest = require("../models/quoteRequest");
+const NotificationService = require("../services/notificationService");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
@@ -73,6 +74,14 @@ exports.registerB2B = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id, user.role);
+
+    // Create notification for B2B registration
+    try {
+      await NotificationService.createB2BRegistrationNotification(user);
+    } catch (notificationError) {
+      console.error("Error creating B2B registration notification:", notificationError);
+      // Don't fail the registration if notification fails
+    }
 
     res.status(201).json({
       success: true,
@@ -511,6 +520,15 @@ exports.createQuoteRequest = async (req, res) => {
         select: "name email businessDetails.companyName"
       }
     ]);
+
+    // Create notification for quote request
+    try {
+      const user = await User.findById(req.user.id);
+      await NotificationService.createQuoteRequestNotification(quoteRequest, user);
+    } catch (notificationError) {
+      console.error("Error creating quote request notification:", notificationError);
+      // Don't fail the quote request if notification fails
+    }
 
     res.status(201).json({
       success: true,

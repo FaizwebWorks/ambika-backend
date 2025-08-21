@@ -13,14 +13,7 @@ const {
   resetSettings
 } = require("../controllers/settingsController");
 const { protect, admin } = require("../middleware/auth");
-const { checkSubscriptionWithGrace } = require("../middleware/subscription");
 const { upload } = require("../config/cloudinary");
-
-// All routes require admin authentication
-router.use(protect);
-router.use(admin);
-// Check subscription for admin access (with grace period)
-router.use(checkSubscriptionWithGrace);
 
 // All routes require admin authentication
 router.use(protect);

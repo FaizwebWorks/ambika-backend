@@ -1,6 +1,7 @@
 const Order = require("../models/order");
 const Product = require("../models/product");
 const User = require("../models/user");
+const NotificationService = require("../services/notificationService");
 const { validationResult } = require("express-validator");
 
 // Create a new order
@@ -19,7 +20,8 @@ exports.createOrder = async (req, res) => {
       customerInfo,
       shipping,
       payment,
-      notes
+      notes,
+      pricing // Allow pricing to be passed for consistency
     } = req.body;
 
     // Validate items and calculate pricing
@@ -43,37 +45,56 @@ exports.createOrder = async (req, res) => {
         });
       }
 
-      const itemTotal = product.price * item.quantity;
+      const itemPrice = item.price || product.discountPrice || product.price;
+      const itemTotal = itemPrice * item.quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         product: product._id,
         productInfo: {
           title: product.title,
-          price: product.price,
+          price: itemPrice,
           image: product.images[0] || ''
         },
         quantity: item.quantity,
-        price: product.price,
+        price: itemPrice,
         size: item.size,
         variants: item.variants || []
       });
-
-      // Update product stock
-      await Product.findByIdAndUpdate(
-        product._id,
-        { $inc: { stock: -item.quantity } }
-      );
     }
 
-    // Calculate total pricing
-    const tax = subtotal * 0.18; // 18% GST
-    const shippingCost = shipping?.method === 'express' ? 200 : 
-                        shipping?.method === 'overnight' ? 500 : 100;
-    const total = subtotal + tax + shippingCost;
+    // Calculate total pricing (use provided pricing if available, otherwise calculate)
+    let finalPricing;
+    if (pricing) {
+      finalPricing = pricing;
+    } else {
+      const tax = subtotal * 0.18; // 18% GST
+      const shippingCost = shipping?.method === 'express' ? 150 : 
+                          shipping?.method === 'priority' ? 300 : 0;
+      finalPricing = {
+        subtotal,
+        tax,
+        shipping: shippingCost,
+        total: subtotal + tax + shippingCost
+      };
+    }
+
+    // Normalize payment method for Stripe variations
+    let paymentMethod = payment?.method || 'cod';
+    if (paymentMethod === 'stripe_card' || paymentMethod === 'stripe_checkout') {
+      paymentMethod = 'stripe';
+    }
+
+    // Generate order number manually to ensure it's set
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const orderNumber = `AMB${year}${month}${random}`;
 
     // Create order
     const order = await Order.create({
+      orderNumber,
       customer: req.user.id,
       customerInfo: customerInfo || {
         name: req.user.name || req.user.username,
@@ -81,20 +102,50 @@ exports.createOrder = async (req, res) => {
         phone: req.user.phone || ''
       },
       items: orderItems,
-      pricing: {
-        subtotal,
-        tax,
-        shipping: shippingCost,
-        total
+      pricing: finalPricing,
+      payment: { 
+        method: paymentMethod,
+        status: 'pending'
       },
-      payment: payment || { method: 'cod' },
       shipping,
       notes
     });
 
+    // Only update stock if payment method is COD or if order is confirmed
+    if (paymentMethod === 'cod' || paymentMethod === 'bank_transfer') {
+      for (const item of items) {
+        const product = await Product.findById(item.product);
+        
+        // Update product stock and check for low stock
+        await Product.findByIdAndUpdate(
+          product._id,
+          { $inc: { stock: -item.quantity } }
+        );
+
+        // Check for low stock after updating
+        const updatedProduct = await Product.findById(product._id);
+        if (updatedProduct.stock <= 10) { // Low stock threshold
+          try {
+            await NotificationService.createLowStockNotification(updatedProduct, updatedProduct.stock, 10);
+          } catch (notificationError) {
+            console.error("Error creating low stock notification:", notificationError);
+          }
+        }
+      }
+    }
+
     const populatedOrder = await Order.findById(order._id)
       .populate('customer', 'name email')
       .populate('items.product', 'title images');
+
+    // Create notification for new order
+    try {
+      const user = await User.findById(req.user.id);
+      await NotificationService.createOrderNotification(order, user);
+    } catch (notificationError) {
+      console.error("Error creating order notification:", notificationError);
+      // Don't fail the order creation if notification fails
+    }
 
     res.status(201).json({
       success: true,
@@ -350,6 +401,16 @@ exports.updatePaymentStatus = async (req, res) => {
         updatedAt: new Date(),
         note: 'Payment completed'
       });
+
+      // Create notification for payment received
+      try {
+        await NotificationService.createPaymentNotification(order, {
+          method: order.payment.method,
+          transactionId: paymentId
+        });
+      } catch (notificationError) {
+        console.error("Error creating payment notification:", notificationError);
+      }
     }
 
     await order.save();

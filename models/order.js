@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 const orderSchema = new mongoose.Schema({
   orderNumber: {
     type: String,
-    required: true,
     unique: true
+    // Removed required: true to let pre-save hook handle it
   },
   customer: {
     type: mongoose.Schema.Types.ObjectId,
@@ -16,13 +16,7 @@ const orderSchema = new mongoose.Schema({
     email: { type: String, required: true },
     phone: { type: String, required: true },
     company: { type: String },
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      pincode: String,
-      country: { type: String, default: "India" }
-    }
+    address: { type: String } // Changed from object to string
   },
   items: [{
     product: {
@@ -75,7 +69,7 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ["cod", "online", "bank_transfer", "cheque"],
+      enum: ["cod", "online", "bank_transfer", "cheque", "stripe", "stripe_card", "stripe_checkout"],
       default: "cod"
     },
     status: {
@@ -85,8 +79,13 @@ const orderSchema = new mongoose.Schema({
     },
     transactionId: String,
     paidAt: Date,
+    // Razorpay fields
     razorpayOrderId: String,
-    razorpayPaymentId: String
+    razorpayPaymentId: String,
+    // Stripe fields
+    stripePaymentIntentId: String,
+    stripeSessionId: String,
+    stripeCustomerId: String
   },
   status: {
     type: String,
@@ -94,13 +93,7 @@ const orderSchema = new mongoose.Schema({
     default: "pending"
   },
   shipping: {
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      pincode: String,
-      country: { type: String, default: "India" }
-    },
+    address: { type: String }, // Changed from object to string
     method: {
       type: String,
       enum: ["standard", "express", "overnight"],
@@ -131,6 +124,18 @@ const orderSchema = new mongoose.Schema({
 
 // Auto-generate order number
 orderSchema.pre('save', async function(next) {
+  if (!this.orderNumber) {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    this.orderNumber = `AMB${year}${month}${random}`;
+  }
+  next();
+});
+
+// Alternative hook for create operations
+orderSchema.pre('validate', function(next) {
   if (!this.orderNumber) {
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
