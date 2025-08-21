@@ -133,7 +133,19 @@ const createProduct = async (req, res) => {
       tags,
       status = 'active',
       features,
-      specifications
+      specifications,
+      quality,
+      sizes,
+      minOrderQuantity = 1,
+      maxOrderQuantity,
+      targetCustomers = ['B2C', 'B2B'],
+      featured = false,
+      b2bPricing = {
+        enabled: true,
+        showPriceToGuests: false,
+        priceOnRequest: true,
+        bulkPricing: []
+      }
     } = req.body;
 
     // Handle images from multer
@@ -149,18 +161,17 @@ const createProduct = async (req, res) => {
       ? features.split('\n').map(feature => feature.trim()).filter(Boolean)
       : features || [];
 
-    // Process specifications (convert JSON string to object)
+    // Process specifications (merge with individual spec fields)
     let processedSpecs = {};
-    if (typeof specifications === 'string') {
-      try {
-        processedSpecs = JSON.parse(specifications);
-      } catch (e) {
-        // If JSON parsing fails, treat as plain text
-        processedSpecs = { description: specifications };
-      }
-    } else if (specifications) {
-      processedSpecs = specifications;
+    if (typeof specifications === 'object' && specifications !== null) {
+      processedSpecs = { ...specifications };
     }
+
+    // Process sizes
+    const processedSizes = Array.isArray(sizes) ? sizes : [];
+
+    // Process target customers
+    const processedTargetCustomers = Array.isArray(targetCustomers) ? targetCustomers : ['B2C', 'B2B'];
 
     // Create product
     const product = new Product({
@@ -174,7 +185,15 @@ const createProduct = async (req, res) => {
       status,
       features: processedFeatures,
       specifications: processedSpecs,
-      images
+      quality,
+      sizes: processedSizes,
+      minOrderQuantity: parseInt(minOrderQuantity),
+      maxOrderQuantity: maxOrderQuantity ? parseInt(maxOrderQuantity) : undefined,
+      targetCustomers: processedTargetCustomers,
+      featured: Boolean(featured),
+      b2bPricing,
+      images,
+      isActive: status === 'active'
     });
 
     const savedProduct = await product.save();
@@ -223,6 +242,13 @@ const updateProduct = async (req, res) => {
       status,
       features,
       specifications,
+      quality,
+      sizes,
+      minOrderQuantity,
+      maxOrderQuantity,
+      targetCustomers,
+      featured,
+      b2bPricing,
       removeImages
     } = req.body;
 
@@ -298,16 +324,16 @@ const updateProduct = async (req, res) => {
     // Process specifications
     let processedSpecs = existingProduct.specifications;
     if (specifications !== undefined) {
-      if (typeof specifications === 'string') {
-        try {
-          processedSpecs = JSON.parse(specifications);
-        } catch (e) {
-          processedSpecs = { description: specifications };
-        }
-      } else {
+      if (typeof specifications === 'object' && specifications !== null) {
         processedSpecs = specifications;
       }
     }
+
+    // Process sizes
+    const processedSizes = Array.isArray(sizes) ? sizes : existingProduct.sizes || [];
+
+    // Process target customers
+    const processedTargetCustomers = Array.isArray(targetCustomers) ? targetCustomers : existingProduct.targetCustomers;
 
     // Update product
     const updateData = {
@@ -321,7 +347,15 @@ const updateProduct = async (req, res) => {
       status: status || existingProduct.status,
       features: processedFeatures,
       specifications: processedSpecs,
+      quality: quality || existingProduct.quality,
+      sizes: processedSizes,
+      minOrderQuantity: minOrderQuantity ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
+      maxOrderQuantity: maxOrderQuantity ? parseInt(maxOrderQuantity) : existingProduct.maxOrderQuantity,
+      targetCustomers: processedTargetCustomers,
+      featured: featured !== undefined ? Boolean(featured) : existingProduct.featured,
+      b2bPricing: b2bPricing || existingProduct.b2bPricing,
       images: updatedImages,
+      isActive: status ? status === 'active' : existingProduct.isActive,
       updatedAt: new Date()
     };
 

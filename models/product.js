@@ -69,6 +69,10 @@ const productSchema = new mongoose.Schema({
     ref: "Category",
     required: true
   },
+  tags: [{
+    type: String,
+    trim: true
+  }],
   sizes: [
     {
       type: String,
@@ -105,6 +109,11 @@ const productSchema = new mongoose.Schema({
     default: 0,
     min: 0,
     max: 100
+  },
+  status: {
+    type: String,
+    enum: ["active", "inactive", "draft"],
+    default: "active"
   },
   isActive: {
     type: Boolean,
