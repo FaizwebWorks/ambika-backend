@@ -124,6 +124,10 @@ const getProductById = async (req, res) => {
 // Create product (Admin only)
 const createProduct = async (req, res) => {
   try {
+    // Debug logging
+    console.log('📝 Create Product Request Body:', req.body);
+    console.log('📸 Files:', req.files);
+    
     const {
       title,
       description,
@@ -133,68 +137,70 @@ const createProduct = async (req, res) => {
       category,
       tags,
       status = 'active',
-      features,
-      specifications,
-      quality,
-      sizes,
+      specifications = {},
       minOrderQuantity = 1,
-      maxOrderQuantity,
-      targetCustomers = ['B2C', 'B2B'],
-      featured = false,
-      b2bPricing = {
-        enabled: true,
-        showPriceToGuests: false,
-        priceOnRequest: true,
-        bulkPricing: []
-      }
+      featured = false
     } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !price || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Title, description, price, and category are required"
+      });
+    }
 
     // Handle images from multer
     const images = req.files ? req.files.map(file => file.path) : [];
+    
+    if (images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one product image is required"
+      });
+    }
 
     // Process tags (convert comma-separated string to array)
     const processedTags = typeof tags === 'string' 
       ? tags.split(',').map(tag => tag.trim()).filter(Boolean)
-      : tags || [];
+      : Array.isArray(tags) ? tags : [];
 
-    // Process features (convert newline-separated string to array)
-    const processedFeatures = typeof features === 'string'
-      ? features.split('\n').map(feature => feature.trim()).filter(Boolean)
-      : features || [];
-
-    // Process specifications (merge with individual spec fields)
-    let processedSpecs = {};
-    if (typeof specifications === 'object' && specifications !== null) {
-      processedSpecs = { ...specifications };
+    // Process specifications (parse JSON if string)
+    let parsedSpecs = specifications;
+    if (typeof specifications === 'string') {
+      try {
+        parsedSpecs = JSON.parse(specifications);
+        console.log('📋 Parsed specifications from JSON:', parsedSpecs);
+      } catch (error) {
+        console.log('❌ Error parsing specifications JSON:', error.message);
+        parsedSpecs = {};
+      }
+    } else {
+      console.log('📋 Specifications received as object:', parsedSpecs);
     }
-
-    // Process sizes
-    const processedSizes = Array.isArray(sizes) ? sizes : [];
-
-    // Process target customers
-    const processedTargetCustomers = Array.isArray(targetCustomers) ? targetCustomers : ['B2C', 'B2B'];
+    
+    const processedSpecs = {
+      material: parsedSpecs.material || '',
+      dimensions: parsedSpecs.dimensions || '',
+      warranty: parsedSpecs.warranty || ''
+    };
+    
+    console.log('✅ Final processed specifications:', processedSpecs);
 
     // Create product
     const product = new Product({
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       price: parseFloat(price),
       discountPrice: discountPrice ? parseFloat(discountPrice) : undefined,
-      stock: parseInt(stock),
+      stock: parseInt(stock) || 0,
       category,
       tags: processedTags,
       status,
-      features: processedFeatures,
       specifications: processedSpecs,
-      quality,
-      sizes: processedSizes,
-      minOrderQuantity: parseInt(minOrderQuantity),
-      maxOrderQuantity: maxOrderQuantity ? parseInt(maxOrderQuantity) : undefined,
-      targetCustomers: processedTargetCustomers,
+      minOrderQuantity: parseInt(minOrderQuantity) || 1,
       featured: Boolean(featured),
-      b2bPricing,
-      images,
-      isActive: status === 'active'
+      images
     });
 
     const savedProduct = await product.save();
@@ -231,6 +237,10 @@ const createProduct = async (req, res) => {
 // Update product (Admin only)
 const updateProduct = async (req, res) => {
   try {
+    // Debug logging
+    console.log('📝 Update Product Request Body:', req.body);
+    console.log('📸 Files:', req.files);
+    
     const { id } = req.params;
     const {
       title,
@@ -241,15 +251,9 @@ const updateProduct = async (req, res) => {
       category,
       tags,
       status,
-      features,
       specifications,
-      quality,
-      sizes,
       minOrderQuantity,
-      maxOrderQuantity,
-      targetCustomers,
       featured,
-      b2bPricing,
       removeImages
     } = req.body;
 
@@ -265,76 +269,72 @@ const updateProduct = async (req, res) => {
     // Handle new images from multer
     const newImages = req.files ? req.files.map(file => file.path) : [];
 
-    // Handle image removal
+    // Handle image removal (parse JSON if string)
     let updatedImages = [...existingProduct.images];
-    if (removeImages && removeImages.length > 0) {
-      const imagesToRemove = Array.isArray(removeImages) ? removeImages : [removeImages];
-      
-      // Remove images from Cloudinary
-      for (const imageUrl of imagesToRemove) {
+    if (removeImages) {
+      let imagesToRemove = removeImages;
+      if (typeof removeImages === 'string') {
         try {
-          const publicId = extractPublicId(imageUrl);
-          await deleteImage(publicId);
-        } catch (cleanupError) {
-          console.error("Error removing image:", cleanupError);
+          imagesToRemove = JSON.parse(removeImages);
+        } catch (error) {
+          imagesToRemove = [];
         }
       }
       
-      // Remove from array
-      updatedImages = updatedImages.filter(img => !imagesToRemove.includes(img));
+      if (imagesToRemove && imagesToRemove.length > 0) {
+        const imageArray = Array.isArray(imagesToRemove) ? imagesToRemove : [imagesToRemove];
+        
+        // Remove images from Cloudinary
+        for (const imageUrl of imageArray) {
+          try {
+            const publicId = extractPublicId(imageUrl);
+            await deleteImage(publicId);
+          } catch (cleanupError) {
+            console.error("Error removing image:", cleanupError);
+          }
+        }
+        
+        // Remove from array
+        updatedImages = updatedImages.filter(img => !imageArray.includes(img));
+      }
     }
 
-    // Add new images only if they don't already exist (prevent duplicates)
+    // Add new images
     if (newImages.length > 0) {
-      // Filter out any new images that already exist in the current images
-      const uniqueNewImages = newImages.filter(newImg => {
-        // Extract filename or public ID to compare
-        const newImgPublicId = extractPublicId(newImg);
-        return !updatedImages.some(existingImg => {
-          const existingImgPublicId = extractPublicId(existingImg);
-          return newImgPublicId === existingImgPublicId;
-        });
-      });
-      
-      // Only add truly new images
-      updatedImages = [...updatedImages, ...uniqueNewImages];
-      
-      // If we filtered out duplicates, clean up the duplicate files from Cloudinary
-      const duplicateImages = newImages.filter(newImg => !uniqueNewImages.includes(newImg));
-      for (const duplicateImg of duplicateImages) {
-        try {
-          const publicId = extractPublicId(duplicateImg);
-          await deleteImage(publicId);
-          console.log(`Removed duplicate image: ${publicId}`);
-        } catch (cleanupError) {
-          console.error("Error cleaning up duplicate image:", cleanupError);
-        }
-      }
+      updatedImages = [...updatedImages, ...newImages];
     }
 
     // Process tags
     const processedTags = typeof tags === 'string' 
       ? tags.split(',').map(tag => tag.trim()).filter(Boolean)
-      : tags || existingProduct.tags;
+      : Array.isArray(tags) ? tags : existingProduct.tags;
 
-    // Process features
-    const processedFeatures = typeof features === 'string'
-      ? features.split('\n').map(feature => feature.trim()).filter(Boolean)
-      : features || existingProduct.features;
-
-    // Process specifications
-    let processedSpecs = existingProduct.specifications;
-    if (specifications !== undefined) {
-      if (typeof specifications === 'object' && specifications !== null) {
-        processedSpecs = specifications;
+    // Process specifications (parse JSON if string)
+    let processedSpecs = existingProduct.specifications || {};
+    if (specifications) {
+      let parsedSpecs = specifications;
+      if (typeof specifications === 'string') {
+        try {
+          parsedSpecs = JSON.parse(specifications);
+          console.log('📋 Update: Parsed specifications from JSON:', parsedSpecs);
+        } catch (error) {
+          console.log('❌ Update: Error parsing specifications JSON:', error.message);
+          parsedSpecs = {};
+        }
+      } else {
+        console.log('📋 Update: Specifications received as object:', parsedSpecs);
+      }
+      
+      if (parsedSpecs && typeof parsedSpecs === 'object') {
+        processedSpecs = {
+          material: parsedSpecs.material || processedSpecs.material || '',
+          dimensions: parsedSpecs.dimensions || processedSpecs.dimensions || '',
+          warranty: parsedSpecs.warranty || processedSpecs.warranty || ''
+        };
       }
     }
-
-    // Process sizes
-    const processedSizes = Array.isArray(sizes) ? sizes : existingProduct.sizes || [];
-
-    // Process target customers
-    const processedTargetCustomers = Array.isArray(targetCustomers) ? targetCustomers : existingProduct.targetCustomers;
+    
+    console.log('✅ Update: Final processed specifications:', processedSpecs);
 
     // Update product
     const updateData = {
@@ -342,27 +342,19 @@ const updateProduct = async (req, res) => {
       description: description || existingProduct.description,
       price: price ? parseFloat(price) : existingProduct.price,
       discountPrice: discountPrice ? parseFloat(discountPrice) : existingProduct.discountPrice,
-      stock: stock ? parseInt(stock) : existingProduct.stock,
+      stock: stock !== undefined ? parseInt(stock) : existingProduct.stock,
       category: category || existingProduct.category,
       tags: processedTags,
       status: status || existingProduct.status,
-      features: processedFeatures,
       specifications: processedSpecs,
-      quality: quality || existingProduct.quality,
-      sizes: processedSizes,
       minOrderQuantity: minOrderQuantity ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
-      maxOrderQuantity: maxOrderQuantity ? parseInt(maxOrderQuantity) : existingProduct.maxOrderQuantity,
-      targetCustomers: processedTargetCustomers,
       featured: featured !== undefined ? Boolean(featured) : existingProduct.featured,
-      b2bPricing: b2bPricing || existingProduct.b2bPricing,
-      images: updatedImages,
-      isActive: status ? status === 'active' : existingProduct.isActive,
-      updatedAt: new Date()
+      images: updatedImages
     };
 
     const updatedProduct = await Product.findByIdAndUpdate(
-      id, 
-      updateData, 
+      id,
+      updateData,
       { new: true, runValidators: true }
     ).populate('category', 'name description');
 
@@ -374,8 +366,7 @@ const updateProduct = async (req, res) => {
   } catch (error) {
     console.error("Update product error:", error);
     
-    // Clean up newly uploaded images if update fails
-    // But only clean up the unique new images, not duplicates that were already cleaned up
+    // Clean up uploaded images if update fails
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         try {

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema({
+  // Basic Information
   title: {
     type: String,
     required: true,
@@ -10,115 +11,65 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // B2C pricing
-  price: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  // B2B pricing structure
-  b2bPricing: {
-    enabled: {
-      type: Boolean,
-      default: true
-    },
-    showPriceToGuests: {
-      type: Boolean,
-      default: false
-    },
-    priceOnRequest: {
-      type: Boolean,
-      default: true
-    },
-    bulkPricing: [
-      {
-        minQuantity: {
-          type: Number,
-          required: true
-        },
-        maxQuantity: Number,
-        pricePerUnit: {
-          type: Number,
-          required: true
-        },
-        discount: {
-          type: Number,
-          default: 0
-        }
-      }
-    ]
-  },
-  stock: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  minOrderQuantity: {
-    type: Number,
-    default: 1
-  },
-  maxOrderQuantity: Number,
-  images: [
-    {
-      type: String, // URL to image
-      required: true
-    }
-  ],
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Category",
     required: true
   },
+  images: [{
+    type: String,
+    required: true
+  }],
+  
+  // Pricing
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  discountPrice: {
+    type: Number,
+    min: 0
+  },
+  
+  // Inventory
+  stock: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
+  minOrderQuantity: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  
+  // Essential Specifications
+  specifications: {
+    material: String,
+    dimensions: String,
+    warranty: String
+  },
+  
+  // Organization & Search
   tags: [{
     type: String,
     trim: true
   }],
-  sizes: [
-    {
-      type: String,
-      enum: ["Small", "Medium", "Large", "XL", "XXL", "XXXL", "Custom"]
-    }
-  ],
-  quality: {
-    type: String,
-    enum: ["Premium", "Standard", "Economy"]
-  },
-  variants: [
-    {
-      name: { type: String }, // e.g., "Color", "Material"
-      value: { type: String }  // e.g., "Red", "Steel"
-    }
-  ],
-  // Product specifications for B2B
-  specifications: {
-    material: String,
-    dimensions: String,
-    weight: String,
-    warranty: String,
-    certifications: [String],
-    features: [String],
-    usage: String,
-    packaging: String
-  },
-  featured: {
-    type: Boolean,
-    default: false
-  },
-  discount: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100
-  },
+  
+  // Status & Features
   status: {
     type: String,
     enum: ["active", "inactive", "draft"],
     default: "active"
   },
-  isActive: {
+  featured: {
     type: Boolean,
-    default: true
+    default: false
   },
+  
+  // Analytics (auto-managed)
   avgRating: {
     type: Number,
     default: 0
@@ -126,14 +77,42 @@ const productSchema = new mongoose.Schema({
   numReviews: {
     type: Number,
     default: 0
-  },
-  // Target customer types
-  targetCustomers: {
-    type: [String],
-    enum: ["B2C", "B2B"],
-    default: ["B2C", "B2B"]
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual for checking if product is on sale
+productSchema.virtual('isOnSale').get(function() {
+  return this.discountPrice && this.discountPrice < this.price;
+});
+
+// Virtual for discount percentage
+productSchema.virtual('discountPercentage').get(function() {
+  if (this.isOnSale) {
+    return Math.round(((this.price - this.discountPrice) / this.price) * 100);
+  }
+  return 0;
+});
+
+// Virtual for final price
+productSchema.virtual('finalPrice').get(function() {
+  return this.discountPrice || this.price;
+});
+
+// Virtual for stock status
+productSchema.virtual('stockStatus').get(function() {
+  if (this.stock === 0) return 'out_of_stock';
+  if (this.stock < 10) return 'low_stock';
+  return 'in_stock';
+});
+
+// Index for search
+productSchema.index({ title: 'text', description: 'text', tags: 'text' });
+productSchema.index({ category: 1, status: 1 });
+productSchema.index({ price: 1, discountPrice: 1 });
 
 const Product = mongoose.model("Product", productSchema);
 

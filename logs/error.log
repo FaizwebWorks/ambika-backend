@@ -1,0 +1,9 @@
+2025-08-22 01:40:59 [ERROR]: Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client
+    at ServerResponse.setHeader (node:_http_outgoing:659:11)
+    at ServerResponse.header (/Users/faizalshaikh/Desktop/ambika/backend/node_modules/express/lib/response.js:794:10)
+    at ServerResponse.<anonymous> (/Users/faizalshaikh/Desktop/ambika/backend/middleware/performance.js:32:9)
+    at ServerResponse.emit (node:events:531:35)
+    at onFinish (node:_http_outgoing:1031:10)
+    at afterWrite (node:internal/streams/writable:708:5)
+    at afterWriteTick (node:internal/streams/writable:694:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:81:21)
