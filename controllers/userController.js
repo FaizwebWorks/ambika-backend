@@ -620,3 +620,257 @@ exports.getQuoteRequest = async (req, res) => {
     });
   }
 };
+
+// Address Management Functions
+
+// Get user addresses
+exports.getAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('addresses');
+    
+    res.status(200).json({
+      success: true,
+      addresses: user.addresses || []
+    });
+  } catch (error) {
+    console.error("Get addresses error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while retrieving addresses",
+    });
+  }
+};
+
+// Add new address
+exports.addAddress = async (req, res) => {
+  try {
+    const {
+      name,
+      customName,
+      fullName,
+      phone,
+      street,
+      city,
+      state,
+      zipCode,
+      landmark,
+      isDefault
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !fullName || !phone || !street || !city || !state || !zipCode) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided",
+      });
+    }
+
+    // Validate custom name for 'Other' type
+    if (name === 'Other' && !customName) {
+      return res.status(400).json({
+        success: false,
+        message: "Custom name is required when address type is 'Other'",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+
+    // If this is the first address or isDefault is true, make it default
+    if (user.addresses.length === 0 || isDefault) {
+      // Remove default from other addresses
+      user.addresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    // Create new address
+    const newAddress = {
+      name,
+      customName: name === 'Other' ? customName : undefined,
+      fullName,
+      phone,
+      street,
+      city,
+      state,
+      zipCode,
+      landmark,
+      isDefault: user.addresses.length === 0 || isDefault
+    };
+
+    user.addresses.push(newAddress);
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Address added successfully",
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error("Add address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while adding address",
+    });
+  }
+};
+
+// Update address
+exports.updateAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+    const {
+      name,
+      customName,
+      fullName,
+      phone,
+      street,
+      city,
+      state,
+      zipCode,
+      landmark,
+      isDefault
+    } = req.body;
+
+    const user = await User.findById(req.user._id);
+    const address = user.addresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // Validate required fields
+    if (!name || !fullName || !phone || !street || !city || !state || !zipCode) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided",
+      });
+    }
+
+    // Validate custom name for 'Other' type
+    if (name === 'Other' && !customName) {
+      return res.status(400).json({
+        success: false,
+        message: "Custom name is required when address type is 'Other'",
+      });
+    }
+
+    // If setting as default, remove default from other addresses
+    if (isDefault) {
+      user.addresses.forEach(addr => {
+        if (addr._id.toString() !== addressId) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    // Update address
+    address.name = name;
+    address.customName = name === 'Other' ? customName : undefined;
+    address.fullName = fullName;
+    address.phone = phone;
+    address.street = street;
+    address.city = city;
+    address.state = state;
+    address.zipCode = zipCode;
+    address.landmark = landmark;
+    address.isDefault = isDefault;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error("Update address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating address",
+    });
+  }
+};
+
+// Delete address
+exports.deleteAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    const address = user.addresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // If deleting default address, make first remaining address default
+    const wasDefault = address.isDefault;
+    
+    // Remove the address
+    user.addresses.pull(addressId);
+
+    // If the deleted address was default and there are remaining addresses, make the first one default
+    if (wasDefault && user.addresses.length > 0) {
+      user.addresses[0].isDefault = true;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address deleted successfully",
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error("Delete address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while deleting address",
+    });
+  }
+};
+
+// Set default address
+exports.setDefaultAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    const address = user.addresses.id(addressId);
+
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // Remove default from all addresses
+    user.addresses.forEach(addr => {
+      addr.isDefault = false;
+    });
+
+    // Set this address as default
+    address.isDefault = true;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Default address updated successfully",
+      addresses: user.addresses
+    });
+  } catch (error) {
+    console.error("Set default address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while setting default address",
+    });
+  }
+};

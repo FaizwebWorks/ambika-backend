@@ -56,6 +56,58 @@ const userSchema = new mongoose.Schema(
     name: String,
     phone: String,
     address: String,
+    // Multiple addresses for delivery
+    addresses: [{
+      _id: {
+        type: mongoose.Schema.Types.ObjectId,
+        auto: true
+      },
+      name: {
+        type: String,
+        enum: ['Home', 'Office', 'Other'],
+        required: true,
+        default: 'Home'
+      },
+      customName: {
+        type: String,
+        required: function() {
+          return this.name === 'Other';
+        }
+      },
+      fullName: {
+        type: String,
+        required: true
+      },
+      phone: {
+        type: String,
+        required: true
+      },
+      street: {
+        type: String,
+        required: true
+      },
+      city: {
+        type: String,
+        required: true
+      },
+      state: {
+        type: String,
+        required: true
+      },
+      zipCode: {
+        type: String,
+        required: true
+      },
+      landmark: String,
+      isDefault: {
+        type: Boolean,
+        default: false
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     // B2B approval status
     approvalStatus: {
       type: String,

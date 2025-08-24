@@ -33,4 +33,7 @@ router.get("/users", adminController.getAllUsers);
 router.put("/users/:userId/role", adminController.updateUserRole);
 router.delete("/users/:userId", adminController.deleteUser);
 
+// System Maintenance
+router.post("/cleanup", adminController.cleanupOrphanedItems);
+
 module.exports = router;

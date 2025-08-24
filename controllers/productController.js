@@ -1,5 +1,7 @@
 const Product = require('../models/product');
 const Category = require('../models/category');
+const Cart = require('../models/cart');
+const Wishlist = require('../models/wishlist');
 const NotificationService = require('../services/notificationService');
 const { deleteImage, extractPublicId } = require('../config/cloudinary');
 
@@ -142,8 +144,11 @@ const createProduct = async (req, res) => {
       featured = false
     } = req.body;
 
+    console.log('🔥 Featured value received:', featured, 'Type:', typeof featured);
+
     // Validate required fields
     if (!title || !description || !price || !category) {
+      console.log('❌ Validation failed - missing required fields');
       return res.status(400).json({
         success: false,
         message: "Title, description, price, and category are required"
@@ -152,8 +157,10 @@ const createProduct = async (req, res) => {
 
     // Handle images from multer
     const images = req.files ? req.files.map(file => file.path) : [];
+    console.log('📷 Images processed:', images.length);
     
     if (images.length === 0) {
+      console.log('❌ No images provided');
       return res.status(400).json({
         success: false,
         message: "At least one product image is required"
@@ -164,6 +171,8 @@ const createProduct = async (req, res) => {
     const processedTags = typeof tags === 'string' 
       ? tags.split(',').map(tag => tag.trim()).filter(Boolean)
       : Array.isArray(tags) ? tags : [];
+
+    console.log('🏷️ Processed tags:', processedTags);
 
     // Process specifications (parse JSON if string)
     let parsedSpecs = specifications;
@@ -187,6 +196,8 @@ const createProduct = async (req, res) => {
     
     console.log('✅ Final processed specifications:', processedSpecs);
 
+    console.log('💾 Creating product in database...');
+
     // Create product
     const product = new Product({
       title: title.trim(),
@@ -199,38 +210,53 @@ const createProduct = async (req, res) => {
       status,
       specifications: processedSpecs,
       minOrderQuantity: parseInt(minOrderQuantity) || 1,
-      featured: Boolean(featured),
+      featured: featured === 'true' || featured === true,
       images
     });
 
+    console.log('💾 Saving product to database...');
     const savedProduct = await product.save();
-    await savedProduct.populate('category', 'name description');
+    console.log('✅ Product saved successfully:', savedProduct._id);
 
+    console.log('🔗 Populating category data...');
+    await savedProduct.populate('category', 'name description');
+    console.log('✅ Category populated successfully');
+
+    console.log('📤 Sending response...');
     res.status(201).json({
       success: true,
       message: "Product created successfully",
       data: { product: savedProduct }
     });
+
   } catch (error) {
-    console.error("Create product error:", error);
+    console.error("❌ Create product error:", error);
+    console.error("❌ Error stack:", error.stack);
     
     // Clean up uploaded images if product creation fails
     if (req.files && req.files.length > 0) {
+      console.log('🧹 Cleaning up uploaded images...');
       for (const file of req.files) {
         try {
           const publicId = extractPublicId(file.path);
-          await deleteImage(publicId);
+          if (publicId) {
+            await deleteImage(publicId);
+            console.log('🗑️ Cleaned up image:', publicId);
+          }
         } catch (cleanupError) {
-          console.error("Error cleaning up image:", cleanupError);
+          console.error("❌ Error cleaning up image:", cleanupError);
         }
       }
     }
 
-    res.status(500).json({
-      success: false,
-      message: "Error creating product",
-      error: error.message
-    });
+    // Ensure we always send a response
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Error creating product",
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 };
 
@@ -256,6 +282,8 @@ const updateProduct = async (req, res) => {
       featured,
       removeImages
     } = req.body;
+
+    console.log('🔥 Featured value received for update:', featured, 'Type:', typeof featured);
 
     // Find existing product
     const existingProduct = await Product.findById(id);
@@ -338,25 +366,29 @@ const updateProduct = async (req, res) => {
 
     // Update product
     const updateData = {
-      title: title || existingProduct.title,
-      description: description || existingProduct.description,
+      title: title ? title.trim() : existingProduct.title,
+      description: description ? description.trim() : existingProduct.description,
       price: price ? parseFloat(price) : existingProduct.price,
-      discountPrice: discountPrice ? parseFloat(discountPrice) : existingProduct.discountPrice,
-      stock: stock !== undefined ? parseInt(stock) : existingProduct.stock,
+      discountPrice: discountPrice && discountPrice !== '' ? parseFloat(discountPrice) : (discountPrice === '' ? null : existingProduct.discountPrice),
+      stock: stock !== undefined && stock !== '' ? parseInt(stock) : existingProduct.stock,
       category: category || existingProduct.category,
       tags: processedTags,
       status: status || existingProduct.status,
       specifications: processedSpecs,
-      minOrderQuantity: minOrderQuantity ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
-      featured: featured !== undefined ? Boolean(featured) : existingProduct.featured,
+      minOrderQuantity: minOrderQuantity && minOrderQuantity !== '' ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
+      featured: featured !== undefined ? (featured === 'true' || featured === true) : existingProduct.featured,
       images: updatedImages
     };
+    
+    console.log('📦 Update: Final updateData:', updateData);
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
     ).populate('category', 'name description');
+
+    console.log('✅ Product updated successfully:', updatedProduct.title);
 
     res.json({
       success: true,
@@ -413,6 +445,30 @@ const deleteProduct = async (req, res) => {
 
     // Delete product from database
     await Product.findByIdAndDelete(id);
+
+    // Clean up cart items that reference this deleted product
+    try {
+      const cartResult = await Cart.updateMany(
+        { 'items.product': id },
+        { $pull: { items: { product: id } } }
+      );
+      console.log(`Cleaned up ${cartResult.modifiedCount} carts after deleting product ${id}`);
+    } catch (cartCleanupError) {
+      console.error("Error cleaning up cart items:", cartCleanupError);
+      // Don't fail the product deletion if cart cleanup fails
+    }
+
+    // Clean up wishlist items that reference this deleted product
+    try {
+      const wishlistResult = await Wishlist.updateMany(
+        { 'items.product': id },
+        { $pull: { items: { product: id } } }
+      );
+      console.log(`Cleaned up ${wishlistResult.modifiedCount} wishlists after deleting product ${id}`);
+    } catch (wishlistCleanupError) {
+      console.error("Error cleaning up wishlist items:", wishlistCleanupError);
+      // Don't fail the product deletion if wishlist cleanup fails
+    }
 
     res.json({
       success: true,

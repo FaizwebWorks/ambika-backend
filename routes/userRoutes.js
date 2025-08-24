@@ -13,6 +13,11 @@ const {
   createQuoteRequest,
   getQuoteRequests,
   getQuoteRequest,
+  getAddresses,
+  addAddress,
+  updateAddress,
+  deleteAddress,
+  setDefaultAddress,
 } = require("../controllers/userController");
 const { protect } = require("../middleware/auth");
 
@@ -87,5 +92,12 @@ router.delete("/wishlist/remove/:productId", protect, removeFromWishlist);
 router.post("/quote-request", protect, createQuoteRequest);
 router.get("/quote-requests", protect, getQuoteRequests);
 router.get("/quote-request/:id", protect, getQuoteRequest);
+
+// Address management routes
+router.get("/addresses", protect, getAddresses);
+router.post("/addresses", protect, addAddress);
+router.put("/addresses/:addressId", protect, updateAddress);
+router.delete("/addresses/:addressId", protect, deleteAddress);
+router.patch("/addresses/:addressId/default", protect, setDefaultAddress);
 
 module.exports = router;

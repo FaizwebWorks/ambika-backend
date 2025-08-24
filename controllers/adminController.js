@@ -984,4 +984,56 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// Clean up orphaned cart and wishlist items
+exports.cleanupOrphanedItems = async (req, res) => {
+  try {
+    const Cart = require("../models/cart");
+    const Wishlist = require("../models/wishlist");
+    
+    // Get all valid product IDs
+    const validProducts = await Product.find({}, '_id');
+    const validProductIds = validProducts.map(p => p._id.toString());
+    
+    // Clean up cart items
+    const cartResult = await Cart.updateMany(
+      {},
+      {
+        $pull: {
+          items: {
+            product: { $nin: validProductIds }
+          }
+        }
+      }
+    );
+    
+    // Clean up wishlist items
+    const wishlistResult = await Wishlist.updateMany(
+      {},
+      {
+        $pull: {
+          items: {
+            product: { $nin: validProductIds }
+          }
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: "Cleanup completed successfully",
+      data: {
+        cartsUpdated: cartResult.modifiedCount,
+        wishlistsUpdated: wishlistResult.modifiedCount
+      }
+    });
+  } catch (error) {
+    console.error("Cleanup error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error during cleanup",
+      error: error.message
+    });
+  }
+};
+
 module.exports = exports;

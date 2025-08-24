@@ -133,13 +133,19 @@ process.on('SIGINT', () => {
 // Unhandled promise rejection handler
 process.on('unhandledRejection', (err) => {
   logger.error('Unhandled Promise Rejection:', err);
-  process.exit(1);
+  // Don't exit in development for better debugging
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 });
 
 // Uncaught exception handler
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
-  process.exit(1);
+  // Don't exit in development for better debugging
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
 });
 
 module.exports = app;

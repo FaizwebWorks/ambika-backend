@@ -17,6 +17,16 @@ const getCart = async (req, res) => {
       await cart.save();
     }
 
+    // Filter out items with deleted products (where product is null)
+    const validItems = cart.items.filter(item => item.product !== null);
+    
+    // If we found invalid items, update the cart
+    if (validItems.length !== cart.items.length) {
+      cart.items = validItems;
+      await cart.save();
+      console.log(`Cleaned up ${cart.items.length - validItems.length} invalid cart items for user ${req.user.id}`);
+    }
+
     res.json({
       success: true,
       data: { cart },

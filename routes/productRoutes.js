@@ -9,6 +9,7 @@ const {
 } = require("../controllers/productController");
 const { protect, admin } = require("../middleware/auth");
 const { upload } = require("../config/cloudinary");
+const { asyncHandler } = require("../middleware/errorHandler");
 
 const router = express.Router();
 
@@ -64,8 +65,7 @@ router.post(
   protect,
   admin,
   upload.array('images', 5), // Handle multiple image uploads (max 5)
-  validateProduct,
-  createProduct
+  asyncHandler(createProduct)
 );
 
 router.put(
@@ -73,10 +73,10 @@ router.put(
   protect, 
   admin, 
   upload.array('images', 5), // Handle multiple image uploads (max 5)
-  updateProduct
+  asyncHandler(updateProduct)
 );
 
-router.delete("/:id", protect, admin, deleteProduct);
+router.delete("/:id", protect, admin, asyncHandler(deleteProduct));
 
 // Bulk operations
 router.put("/bulk", protect, admin, bulkUpdateProducts);
