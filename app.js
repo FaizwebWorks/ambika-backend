@@ -1,4 +1,5 @@
 require("dotenv").config();
+const cors = require("cors");
 const express = require("express");
 const connectDB = require("./config/db");
 const logger = require("./utils/logger");
@@ -53,7 +54,14 @@ app.use(memoryMonitoring); // Monitor memory usage
 app.use(requestSizeLimit('50mb')); // Limit request size
 app.use(optimizedCompression); // Compress responses
 app.use(securityHeaders); // Security headers
-app.use(corsMiddleware); // CORS configuration
+
+// CORS configuration for deployment
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
+
+// app.use(corsMiddleware); // Remove custom CORS middleware for deployment
 app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
 app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse URL encoded data
 app.use(dbConnectionCheck); // Check DB connection
