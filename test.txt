@@ -1,0 +1,9 @@
+ise thoda or enchance karo and dropdown custom dropdown lagao
+and sirf ek na select kare category
+multiple select kar sake backend mai bhi dekh lena hoga ki nhi
+ok
+like ek category kitchen supplies mai bhi jaegi and electronics mai bhi
+isliye
+
+backend and frontend dono chal rahe hai to puchna mat ok
+

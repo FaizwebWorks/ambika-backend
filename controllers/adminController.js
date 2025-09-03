@@ -359,6 +359,8 @@ exports.updateOrderStatus = async (req, res) => {
     // Set delivered date if status is delivered
     if (status === 'delivered') {
       updateData['shipping.deliveredAt'] = new Date();
+      // Also set payment.status to completed
+      updateData['payment.status'] = 'completed';
     }
 
     const updatedOrder = await Order.findByIdAndUpdate(
