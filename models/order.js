@@ -80,8 +80,8 @@ const orderSchema = new mongoose.Schema({
     transactionId: String,
     paidAt: Date,
     // Razorpay fields
-    razorpayOrderId: String,
-    razorpayPaymentId: String,
+    // razorpayOrderId: String,
+    // razorpayPaymentId: String,
     // Stripe fields
     stripePaymentIntentId: String,
     stripeSessionId: String,

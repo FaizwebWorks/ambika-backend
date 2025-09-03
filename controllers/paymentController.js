@@ -6,10 +6,10 @@ const Order = require('../models/order');
 const stripeService = require('../services/stripeService');
 
 // Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// const razorpay = new Razorpay({
+//   key_id: process.env.RAZORPAY_KEY_ID,
+//   key_secret: process.env.RAZORPAY_KEY_SECRET,
+// });
 
 // Subscription plans
 const SUBSCRIPTION_PLANS = {
@@ -368,29 +368,16 @@ exports.checkSubscriptionStatus = async (req, res) => {
 
 // ============ STRIPE PAYMENT METHODS ============
 
-// Create Stripe payment intent for order
 exports.createStripePaymentIntent = async (req, res) => {
   try {
     const { orderId } = req.body;
-    
-    // Find the order
     const order = await Order.findById(orderId).populate('items.product');
-    
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found"
-      });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
-    
-    // Verify order belongs to user
     if (order.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized access to order"
-      });
+      return res.status(403).json({ success: false, message: "Unauthorized access to order" });
     }
-    
     const orderData = {
       total: order.pricing.total,
       customerInfo: {
@@ -399,14 +386,10 @@ exports.createStripePaymentIntent = async (req, res) => {
       },
       orderId: order._id.toString(),
     };
-    
     const paymentIntent = await stripeService.createPaymentIntent(orderData);
-    
-    // Update order with payment intent
     order.payment.stripePaymentIntentId = paymentIntent.paymentIntentId;
     order.payment.status = 'pending';
     await order.save();
-    
     res.json({
       success: true,
       data: {
@@ -417,41 +400,25 @@ exports.createStripePaymentIntent = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating Stripe payment intent:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error creating payment intent",
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: "Error creating payment intent", error: error.message });
   }
 };
 
-// Confirm Stripe payment
 exports.confirmStripePayment = async (req, res) => {
   try {
     const { paymentIntentId, orderId } = req.body;
-    
-    // Verify payment with Stripe
     const paymentConfirmation = await stripeService.confirmPayment(paymentIntentId);
-    
     if (paymentConfirmation.status === 'succeeded') {
-      // Update order status
       const order = await Order.findById(orderId);
-      
       if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: "Order not found"
-        });
+        return res.status(404).json({ success: false, message: "Order not found" });
       }
-      
       order.payment.status = 'completed';
       order.payment.method = 'stripe';
       order.payment.transactionId = paymentIntentId;
       order.payment.paidAt = new Date();
       order.status = 'confirmed';
-      
       await order.save();
-      
       res.json({
         success: true,
         message: "Payment confirmed successfully",
@@ -462,47 +429,24 @@ exports.confirmStripePayment = async (req, res) => {
         }
       });
     } else {
-      res.status(400).json({
-        success: false,
-        message: "Payment not completed",
-        data: {
-          status: paymentConfirmation.status
-        }
-      });
+      res.status(400).json({ success: false, message: "Payment not completed", data: { status: paymentConfirmation.status } });
     }
   } catch (error) {
     console.error("Error confirming Stripe payment:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error confirming payment",
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: "Error confirming payment", error: error.message });
   }
 };
 
-// Create Stripe checkout session
 exports.createStripeCheckoutSession = async (req, res) => {
   try {
     const { orderId } = req.body;
-    
-    // Find the order with populated product details
     const order = await Order.findById(orderId).populate('items.product');
-    
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: "Order not found"
-      });
+      return res.status(404).json({ success: false, message: "Order not found" });
     }
-    
-    // Verify order belongs to user
     if (order.customer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized access to order"
-      });
+      return res.status(403).json({ success: false, message: "Unauthorized access to order" });
     }
-    
     const orderData = {
       items: order.items,
       total: order.pricing.total,
@@ -512,14 +456,10 @@ exports.createStripeCheckoutSession = async (req, res) => {
       },
       orderId: order._id.toString(),
     };
-    
     const checkoutSession = await stripeService.createCheckoutSession(orderData);
-    
-    // Update order with session info
     order.payment.stripeSessionId = checkoutSession.sessionId;
     order.payment.status = 'pending';
     await order.save();
-    
     res.json({
       success: true,
       data: {
@@ -529,29 +469,18 @@ exports.createStripeCheckoutSession = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating Stripe checkout session:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error creating checkout session",
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: "Error creating checkout session", error: error.message });
   }
 };
 
-// Handle Stripe webhook
 exports.handleStripeWebhook = async (req, res) => {
   try {
     const signature = req.headers['stripe-signature'];
-    
     const event = await stripeService.handleWebhook(req.body, signature);
-    
     switch (event.type) {
       case 'payment_succeeded':
-        // Handle successful payment
         const paymentIntentId = event.data.id;
-        const order = await Order.findOne({
-          'payment.stripePaymentIntentId': paymentIntentId
-        });
-        
+        const order = await Order.findOne({ 'payment.stripePaymentIntentId': paymentIntentId });
         if (order) {
           order.payment.status = 'completed';
           order.status = 'confirmed';
@@ -559,14 +488,9 @@ exports.handleStripeWebhook = async (req, res) => {
           await order.save();
         }
         break;
-        
       case 'checkout_completed':
-        // Handle checkout session completion
         const sessionId = event.data.id;
-        const sessionOrder = await Order.findOne({
-          'payment.stripeSessionId': sessionId
-        });
-        
+        const sessionOrder = await Order.findOne({ 'payment.stripeSessionId': sessionId });
         if (sessionOrder) {
           sessionOrder.payment.status = 'completed';
           sessionOrder.status = 'confirmed';
@@ -574,41 +498,24 @@ exports.handleStripeWebhook = async (req, res) => {
           await sessionOrder.save();
         }
         break;
-        
       case 'payment_failed':
-        // Handle failed payment
         console.log('Payment failed:', event.data);
         break;
     }
-    
     res.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
-    res.status(400).json({
-      success: false,
-      message: "Webhook error",
-      error: error.message
-    });
+    res.status(400).json({ success: false, message: "Webhook error", error: error.message });
   }
 };
 
-// Get Stripe session details
 exports.getStripeSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
     const sessionDetails = await stripeService.getSession(sessionId);
-    
-    res.json({
-      success: true,
-      data: sessionDetails
-    });
+    res.json({ success: true, data: sessionDetails });
   } catch (error) {
     console.error("Error fetching Stripe session:", error);
-    res.status(500).json({
-      success: false,
-      message: "Error fetching session details",
-      error: error.message
-    });
+    res.status(500).json({ success: false, message: "Error fetching session details", error: error.message });
   }
 };
