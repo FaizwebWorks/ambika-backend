@@ -313,9 +313,10 @@ const createSampleOrders = async (users, products) => {
     }));
 
     const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const tax = subtotal * 0.18;
-    const shipping = 100;
-    const total = subtotal + tax + shipping;
+  // GST removed globally
+  const tax = 0;
+  const shipping = 100;
+  const total = subtotal + shipping; // exclude tax
 
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     const paymentMethod = paymentMethods[Math.floor(Math.random() * paymentMethods.length)];

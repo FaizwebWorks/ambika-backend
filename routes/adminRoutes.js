@@ -18,6 +18,7 @@ router.put("/products/bulk", adminController.bulkUpdateProducts);
 // Orders Management
 router.get("/orders", adminController.getAdminOrders);
 router.put("/orders/:id/status", adminController.updateOrderStatus);
+router.get("/orders/:id", adminController.getAdminOrderById);
 
 // Customers Management
 router.get("/customers", adminController.getAdminCustomers);

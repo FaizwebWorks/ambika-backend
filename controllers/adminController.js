@@ -332,6 +332,54 @@ exports.getAdminOrders = async (req, res) => {
   }
 };
 
+// Get single order details for admin
+exports.getAdminOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid order ID' });
+    }
+
+    const order = await Order.findById(id)
+      .populate('customer', 'name email phone')
+      .populate('items.product', 'title images sku price stock');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    // Compute derived metrics
+    const itemsSummary = order.items.map(i => ({
+      productId: i.product?._id,
+      title: i.productInfo?.title || i.product?.title,
+      quantity: i.quantity,
+      price: i.price,
+      total: i.price * i.quantity,
+      size: i.size,
+      variants: i.variants
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        order,
+        summary: {
+          itemCount: order.items.length,
+          subtotal: order.pricing?.subtotal || 0,
+          total: order.pricing?.total || 0,
+          paymentStatus: order.payment?.status,
+          status: order.status,
+          items: itemsSummary
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get admin order by id error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching order details' });
+  }
+};
+
 // Update order status
 exports.updateOrderStatus = async (req, res) => {
   try {

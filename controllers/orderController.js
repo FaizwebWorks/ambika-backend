@@ -68,14 +68,14 @@ exports.createOrder = async (req, res) => {
     if (pricing) {
       finalPricing = pricing;
     } else {
-      const tax = subtotal * 0.18; // 18% GST
+  const tax = 0; // GST disabled
       const shippingCost = shipping?.method === 'express' ? 150 : 
                           shipping?.method === 'priority' ? 300 : 0;
       finalPricing = {
         subtotal,
         tax,
         shipping: shippingCost,
-        total: subtotal + tax + shippingCost
+  total: subtotal + shippingCost // tax removed
       };
     }
 
