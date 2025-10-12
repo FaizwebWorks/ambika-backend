@@ -4953,3 +4953,215 @@
 2025-10-08 12:18:03 [INFO]: Request completed
 2025-10-08 12:18:03 [INFO]: Incoming request
 2025-10-08 12:18:03 [INFO]: Request completed
+2025-10-08 12:23:16 [INFO]: Incoming request
+2025-10-08 12:23:20 [WARN]: Slow request detected
+2025-10-08 12:23:20 [INFO]: Request completed
+2025-10-08 12:23:20 [INFO]: Incoming request
+2025-10-08 12:23:21 [INFO]: Request completed
+2025-10-08 12:24:22 [INFO]: Incoming request
+2025-10-08 12:24:22 [INFO]: Request completed
+2025-10-08 12:27:24 [INFO]: Incoming request
+2025-10-08 12:27:27 [WARN]: Slow request detected
+2025-10-08 12:27:27 [INFO]: Request completed
+2025-10-08 12:27:27 [INFO]: Incoming request
+2025-10-08 12:27:27 [INFO]: Request completed
+2025-10-08 12:27:35 [INFO]: Incoming request
+2025-10-08 12:27:35 [INFO]: Incoming request
+2025-10-08 12:27:35 [INFO]: Request completed
+2025-10-08 12:27:35 [INFO]: Request completed
+2025-10-08 12:31:28 [INFO]: Server is running on port 3000
+2025-10-08 12:31:46 [INFO]: Server is running on port 3000
+2025-10-08 12:32:06 [INFO]: Server is running on port 3000
+2025-10-08 12:32:19 [INFO]: Server is running on port 3000
+2025-10-08 12:32:48 [INFO]: Incoming request
+2025-10-08 12:32:53 [WARN]: Slow request detected
+2025-10-08 12:32:53 [INFO]: Request completed
+2025-10-08 12:32:53 [INFO]: Incoming request
+2025-10-08 12:32:53 [INFO]: Request completed
+2025-10-08 12:33:07 [INFO]: Incoming request
+2025-10-08 12:33:07 [INFO]: Request completed
+2025-10-08 12:33:07 [INFO]: Incoming request
+2025-10-08 12:33:07 [INFO]: Request completed
+2025-10-08 12:33:22 [INFO]: Incoming request
+2025-10-08 12:33:22 [INFO]: Incoming request
+2025-10-08 12:33:22 [INFO]: Request completed
+2025-10-08 12:33:22 [INFO]: Request completed
+2025-10-08 12:33:24 [INFO]: Incoming request
+2025-10-08 12:33:24 [INFO]: Incoming request
+2025-10-08 12:33:24 [INFO]: Request completed
+2025-10-08 12:33:24 [INFO]: Request completed
+2025-10-08 12:33:24 [INFO]: Incoming request
+2025-10-08 12:33:24 [INFO]: Request completed
+2025-10-08 12:33:26 [INFO]: Incoming request
+2025-10-08 12:33:26 [INFO]: Incoming request
+2025-10-08 12:33:26 [INFO]: Request completed
+2025-10-08 12:33:26 [INFO]: Request completed
+2025-10-08 12:33:30 [INFO]: Incoming request
+2025-10-08 12:33:30 [INFO]: Request completed
+2025-10-08 12:33:30 [INFO]: Incoming request
+2025-10-08 12:33:30 [INFO]: Request completed
+2025-10-08 12:33:48 [INFO]: Incoming request
+2025-10-08 12:33:48 [INFO]: Request completed
+2025-10-08 12:33:48 [INFO]: Incoming request
+2025-10-08 12:33:49 [INFO]: Request completed
+2025-10-08 12:33:49 [INFO]: Incoming request
+2025-10-08 12:33:49 [INFO]: Request completed
+2025-10-08 12:34:01 [INFO]: Incoming request
+2025-10-08 12:34:01 [INFO]: Request completed
+2025-10-08 12:34:59 [INFO]: Incoming request
+2025-10-08 12:35:00 [INFO]: Request completed
+2025-10-08 12:35:00 [INFO]: Incoming request
+2025-10-08 12:35:00 [INFO]: Request completed
+2025-10-08 12:35:09 [INFO]: Incoming request
+2025-10-08 12:35:10 [INFO]: Request completed
+2025-10-08 12:35:10 [INFO]: Incoming request
+2025-10-08 12:35:10 [INFO]: Request completed
+2025-10-08 12:35:10 [INFO]: Incoming request
+2025-10-08 12:35:10 [INFO]: Request completed
+2025-10-08 12:35:10 [INFO]: Incoming request
+2025-10-08 12:35:10 [INFO]: Request completed
+2025-10-08 12:35:19 [INFO]: Incoming request
+2025-10-08 12:35:19 [INFO]: Incoming request
+2025-10-08 12:35:19 [INFO]: Incoming request
+2025-10-08 12:35:19 [INFO]: Request completed
+2025-10-08 12:35:19 [INFO]: Request completed
+2025-10-08 12:35:19 [INFO]: Request completed
+2025-10-08 12:35:27 [INFO]: Incoming request
+2025-10-08 12:35:27 [INFO]: Incoming request
+2025-10-08 12:35:27 [INFO]: Request completed
+2025-10-08 12:35:27 [INFO]: Request completed
+2025-10-08 12:35:36 [INFO]: Incoming request
+2025-10-08 12:35:37 [INFO]: Request completed
+2025-10-08 12:35:40 [INFO]: Incoming request
+2025-10-08 12:35:40 [INFO]: Request completed
+2025-10-08 12:35:43 [INFO]: Incoming request
+2025-10-08 12:35:43 [INFO]: Request completed
+2025-10-08 12:35:59 [INFO]: Incoming request
+2025-10-08 12:35:59 [INFO]: Request completed
+2025-10-08 12:35:59 [INFO]: Incoming request
+2025-10-08 12:35:59 [INFO]: Request completed
+2025-10-08 12:36:05 [INFO]: Incoming request
+2025-10-08 12:36:05 [INFO]: Incoming request
+2025-10-08 12:36:05 [INFO]: Request completed
+2025-10-08 12:36:05 [INFO]: Request completed
+2025-10-08 12:36:05 [INFO]: Incoming request
+2025-10-08 12:36:05 [INFO]: Incoming request
+2025-10-08 12:36:05 [INFO]: Incoming request
+2025-10-08 12:36:05 [INFO]: Request completed
+2025-10-08 12:36:05 [INFO]: Request completed
+2025-10-08 12:36:05 [INFO]: Request completed
+2025-10-08 12:36:06 [INFO]: Incoming request
+2025-10-08 12:36:06 [INFO]: Incoming request
+2025-10-08 12:36:06 [INFO]: Request completed
+2025-10-08 12:36:06 [INFO]: Request completed
+2025-10-08 12:36:06 [INFO]: Incoming request
+2025-10-08 12:36:06 [INFO]: Incoming request
+2025-10-08 12:36:06 [INFO]: Incoming request
+2025-10-08 12:36:06 [INFO]: Request completed
+2025-10-08 12:36:06 [INFO]: Request completed
+2025-10-08 12:36:06 [INFO]: Request completed
+2025-10-08 12:36:23 [INFO]: Incoming request
+2025-10-08 12:36:23 [INFO]: Request completed
+2025-10-08 12:36:23 [INFO]: Incoming request
+2025-10-08 12:36:23 [INFO]: Request completed
+2025-10-08 12:36:25 [INFO]: Incoming request
+2025-10-08 12:36:25 [INFO]: Request completed
+2025-10-08 12:36:31 [INFO]: Incoming request
+2025-10-08 12:36:31 [INFO]: Incoming request
+2025-10-08 12:36:31 [INFO]: Request completed
+2025-10-08 12:36:31 [INFO]: Request completed
+2025-10-08 12:36:31 [INFO]: Incoming request
+2025-10-08 12:36:31 [INFO]: Incoming request
+2025-10-08 12:36:31 [INFO]: Incoming request
+2025-10-08 12:36:31 [INFO]: Request completed
+2025-10-08 12:36:31 [INFO]: Request completed
+2025-10-08 12:36:31 [INFO]: Request completed
+2025-10-08 12:36:34 [INFO]: Incoming request
+2025-10-08 12:36:34 [INFO]: Incoming request
+2025-10-08 12:36:34 [INFO]: Request completed
+2025-10-08 12:36:34 [INFO]: Request completed
+2025-10-08 12:36:35 [INFO]: Incoming request
+2025-10-08 12:36:35 [INFO]: Incoming request
+2025-10-08 12:36:35 [INFO]: Incoming request
+2025-10-08 12:36:35 [INFO]: Request completed
+2025-10-08 12:36:35 [INFO]: Request completed
+2025-10-08 12:36:35 [INFO]: Request completed
+2025-10-08 12:36:40 [INFO]: Incoming request
+2025-10-08 12:36:40 [INFO]: Request completed
+2025-10-08 12:37:06 [INFO]: Server is running on port 3000
+2025-10-08 12:37:08 [INFO]: Server is running on port 3000
+2025-10-08 12:37:09 [INFO]: Server is running on port 3000
+2025-10-08 12:37:20 [INFO]: Server is running on port 3000
+2025-10-08 12:39:10 [INFO]: Server is running on port 3000
+2025-10-08 12:39:13 [INFO]: Server is running on port 3000
+2025-10-08 12:39:16 [INFO]: Server is running on port 3000
+2025-10-08 12:39:46 [INFO]: Server is running on port 3000
+2025-10-12 17:27:36 [INFO]: Server is running on port 3000
+2025-10-12 18:24:46 [INFO]: Server is running on port 3000
+2025-10-12 18:25:06 [INFO]: Server is running on port 3000
+2025-10-12 18:32:18 [INFO]: Server is running on port 3000
+2025-10-12 18:33:39 [INFO]: Server is running on port 3000
+2025-10-12 18:33:39 [ERROR]: MongoDB connection failed:
+2025-10-12 18:33:39 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:33:44 [ERROR]: MongoDB connection failed:
+2025-10-12 18:33:44 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:33:49 [ERROR]: MongoDB connection failed:
+2025-10-12 18:33:49 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:33:55 [ERROR]: MongoDB connection failed:
+2025-10-12 18:33:55 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:00 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:00 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:05 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:05 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:10 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:10 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:15 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:15 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:20 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:20 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:25 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:25 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:30 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:30 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:35 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:35 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:40 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:40 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:45 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:45 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:50 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:50 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:34:55 [ERROR]: MongoDB connection failed:
+2025-10-12 18:34:55 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:00 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:00 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:05 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:05 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:10 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:10 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:15 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:15 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:20 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:20 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:25 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:25 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:30 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:30 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:35 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:35 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:40 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:40 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:45 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:45 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:50 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:50 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:35:55 [ERROR]: MongoDB connection failed:
+2025-10-12 18:35:55 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:36:00 [ERROR]: MongoDB connection failed:
+2025-10-12 18:36:00 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:36:05 [ERROR]: MongoDB connection failed:
+2025-10-12 18:36:05 [INFO]: Retrying MongoDB connection in 5 seconds...
+2025-10-12 18:36:10 [INFO]: Server is running on port 3000
+2025-10-12 18:46:49 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-12 18:47:05 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-12 18:47:39 [INFO] [ambika-api]: Server is running on port 3000

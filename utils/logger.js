@@ -4,8 +4,12 @@ const path = require('path');
 // Create logs directory if it doesn't exist
 const fs = require('fs');
 const logDir = path.join(__dirname, '../logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir);
+try {
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+} catch (error) {
+  console.error('Failed to create logs directory:', error);
 }
 
 // Custom log format
@@ -14,8 +18,9 @@ const logFormat = winston.format.combine(
     format: 'YYYY-MM-DD HH:mm:ss'
   }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ level, message, timestamp, stack }) => {
-    return `${timestamp} [${level.toUpperCase()}]: ${stack || message}`;
+  winston.format.json(),
+  winston.format.printf(({ level, message, timestamp, service, stack }) => {
+    return `${timestamp} [${level.toUpperCase()}] [${service || 'ambika-api'}]: ${stack || message}`;
   })
 );
 
