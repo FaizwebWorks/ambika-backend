@@ -55,11 +55,37 @@ app.use(requestSizeLimit('50mb')); // Limit request size
 app.use(optimizedCompression); // Compress responses
 app.use(securityHeaders); // Security headers
 
-// CORS configuration for deployment
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
-}));
+// CORS configuration for both production and development
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://ambika-frontend.vercel.app', // Production frontend
+      'http://localhost:5173',              // Development frontend
+      'http://localhost:3000',              // Alternative dev port
+      'http://127.0.0.1:5173',             // Alternative localhost
+      process.env.FRONTEND_URL             // Environment variable
+    ].filter(Boolean); // Remove undefined values
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, allow all origins
+      if (process.env.NODE_ENV === 'development') {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 
 // app.use(corsMiddleware); // Remove custom CORS middleware for deployment
 app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
@@ -70,9 +96,17 @@ app.use(dbConnectionCheck); // Check DB connection
 // Rate limiting
 // app.use(generalRateLimit); // General rate limiting - temporarily disabled
 
-// Request logging
+// Request logging - Only in development and production (not test)
 if (process.env.NODE_ENV !== 'test') {
   app.use(requestLogger);
+}
+
+// Enable rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(generalRateLimit);
+  app.use("/api/users/login", authRateLimit);
+  app.use("/api/users/register", authRateLimit);
+  app.use("/api/users/forgot-password", authRateLimit);
 }
 
 // Authentication routes with stricter rate limiting

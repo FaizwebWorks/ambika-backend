@@ -4,8 +4,9 @@
   "description": "Ambika International Backend API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "start:cluster": "CLUSTER_MODE=true node server.js",
+    "start": "NODE_ENV=production node server.js",
+    "start:dev": "NODE_ENV=development node server.js",
+    "start:cluster": "NODE_ENV=production CLUSTER_MODE=true node server.js",
     "start:prod": "NODE_ENV=production node server.js",
     "start:prod:cluster": "NODE_ENV=production CLUSTER_MODE=true node server.js",
     "dev": "NODE_ENV=development nodemon server.js",
@@ -13,13 +14,15 @@
     "seed": "node seedData.js",
     "seed:notifications": "node seedNotificationData.js",
     "seed:subscriptions": "node seedSubscriptionData.js",
+    "seed:products": "node setupDatabase.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:notifications": "node testNotifications.js",
     "logs": "tail -f logs/combined.log",
     "logs:error": "tail -f logs/error.log",
     "setup": "chmod +x setup.sh && ./setup.sh",
     "clean:logs": "rm -rf logs/*.log",
-    "health": "curl http://localhost:3000/health"
+    "health": "curl http://localhost:3000/health || curl https://ambika-backend-weyi.onrender.com/health",
+    "build": "echo 'No build step required for Node.js'"
   },
   "keywords": [],
   "author": "",

@@ -6,16 +6,30 @@ const connectDB = async () => {
     // Set mongoose options for better connection handling
     mongoose.set('strictQuery', true);
     
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
+    // Configure mongoose buffering options
+    mongoose.set('bufferCommands', false); // Disable mongoose command buffering
+    
+    // Production-optimized connection options
+    const connectionOptions = {
       // Connection stability options
-      serverSelectionTimeoutMS: 30000, // 30 seconds timeout
-      socketTimeoutMS: 45000, // 45 seconds socket timeout
-      bufferMaxEntries: 0, // Disable mongoose buffering
-      maxPoolSize: 10, // Maximum number of connections
-      minPoolSize: 5, // Minimum number of connections
+      serverSelectionTimeoutMS: process.env.NODE_ENV === 'production' ? 20000 : 30000,
+      socketTimeoutMS: process.env.NODE_ENV === 'production' ? 30000 : 45000,
+      maxPoolSize: process.env.NODE_ENV === 'production' ? 20 : 10, // More connections in production
+      minPoolSize: process.env.NODE_ENV === 'production' ? 10 : 5,
       maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
       heartbeatFrequencyMS: 10000, // Ping every 10 seconds
-    });
+      
+      // Production-specific optimizations
+      ...(process.env.NODE_ENV === 'production' && {
+        maxConnecting: 2,
+        retryWrites: true,
+        w: 'majority',
+        readPreference: 'primary',
+        readConcern: { level: 'majority' }
+      })
+    };
+    
+    const conn = await mongoose.connect(process.env.MONGO_URI, connectionOptions);
 
     console.log(`MongoDB connected: ${conn.connection.host}`);
     logger.info(`MongoDB connected successfully to ${conn.connection.host}`);
