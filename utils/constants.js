@@ -163,19 +163,19 @@ const PAGINATION = {
   MIN_LIMIT: 1
 };
 
-// Rate limiting
+// Rate limiting (Relaxed for better user experience)
 const RATE_LIMITS = {
   GENERAL: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // 100 requests per window
+    max: 200 // Increased from 100 to 200 requests per window
   },
   AUTH: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5 // 5 login attempts per window
+    max: 20 // Increased from 5 to 20 login attempts per window
   },
   API: {
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 60 // 60 requests per minute
+    max: 120 // Increased from 60 to 120 requests per minute
   }
 };
 
@@ -255,7 +255,11 @@ const COOKIE_SETTINGS = {
 // CORS settings
 const CORS_OPTIONS = {
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
+    ? [
+        'https://ambika-international-ixiy2810o-faizwebworks-projects.vercel.app',
+        'https://ambika-international.vercel.app',
+        process.env.FRONTEND_URL
+      ].filter(Boolean)
     : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

@@ -9,13 +9,13 @@ const connectDB = async () => {
     // Configure mongoose buffering options
     mongoose.set('bufferCommands', false); // Disable mongoose command buffering
     
-    // Production-optimized connection options
+    // Balanced connection options for production
     const connectionOptions = {
       // Connection stability options
-      serverSelectionTimeoutMS: process.env.NODE_ENV === 'production' ? 20000 : 30000,
-      socketTimeoutMS: process.env.NODE_ENV === 'production' ? 30000 : 45000,
-      maxPoolSize: process.env.NODE_ENV === 'production' ? 20 : 10, // More connections in production
-      minPoolSize: process.env.NODE_ENV === 'production' ? 10 : 5,
+      serverSelectionTimeoutMS: 10000,  // Faster timeout for better UX
+      socketTimeoutMS: 45000,
+      maxPoolSize: 8,   // Balanced pool size for performance vs memory
+      minPoolSize: 2,   // Keep some connections alive
       maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
       heartbeatFrequencyMS: 10000, // Ping every 10 seconds
       

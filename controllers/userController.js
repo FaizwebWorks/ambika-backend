@@ -171,18 +171,28 @@ exports.register = async (req, res) => {
 
 // Login user
 exports.login = async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    console.log(`[LOGIN] Starting login process for ${req.body?.email || 'unknown'}`);
+    
     // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log(`[LOGIN] Validation errors:`, errors.array());
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     const { email, password } = req.body;
+    console.log(`[LOGIN] Processing login for email: ${email}`);
 
     // Find user by email
+    const userStartTime = Date.now();
     const user = await User.findOne({ email });
+    console.log(`[LOGIN] User lookup took: ${Date.now() - userStartTime}ms`);
+    
     if (!user) {
+      console.log(`[LOGIN] User not found for email: ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -190,8 +200,12 @@ exports.login = async (req, res) => {
     }
 
     // Compare password
+    const bcryptStartTime = Date.now();
     const isMatch = await bcrypt.compare(password, user.password);
+    console.log(`[LOGIN] Password comparison took: ${Date.now() - bcryptStartTime}ms`);
+    
     if (!isMatch) {
+      console.log(`[LOGIN] Password mismatch for email: ${email}`);
       return res.status(401).json({
         success: false,
         message: "Invalid credentials",
@@ -199,7 +213,12 @@ exports.login = async (req, res) => {
     }
 
     // Generate token
+    const tokenStartTime = Date.now();
     const token = generateToken(user._id, user.role);
+    console.log(`[LOGIN] Token generation took: ${Date.now() - tokenStartTime}ms`);
+
+    const totalTime = Date.now() - startTime;
+    console.log(`[LOGIN] Login successful for ${email} - Total time: ${totalTime}ms`);
 
     res.status(200).json({
       success: true,
@@ -216,7 +235,8 @@ exports.login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
+    const totalTime = Date.now() - startTime;
+    console.error(`[LOGIN] Error after ${totalTime}ms:`, error);
     res.status(500).json({
       success: false,
       message: "Server error during login",
