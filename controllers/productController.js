@@ -161,7 +161,7 @@ const createProduct = async (req, res) => {
     console.log('📷 Images processed:', images.length, 'files:', uploadedFiles);
     
     if (images.length === 0) {
-      console.log('❌ No images provided');
+      console.log('❌ No images provided for new product');
       return res.status(400).json({
         success: false,
         message: "At least one product image is required"
@@ -299,27 +299,34 @@ const updateProduct = async (req, res) => {
     // Handle new images from multer
     const uploadedFiles = req.files && req.files.images ? req.files.images : [];
     const newImages = uploadedFiles.map(file => file.path);
+    console.log('📷 New images to add:', newImages.length);
+
+    // Start with existing images
+    let updatedImages = [...existingProduct.images];
+    console.log('📷 Starting with existing images:', updatedImages.length);
 
     // Handle image removal (parse JSON if string)
-    let updatedImages = [...existingProduct.images];
     if (removeImages) {
       let imagesToRemove = removeImages;
       if (typeof removeImages === 'string') {
         try {
           imagesToRemove = JSON.parse(removeImages);
         } catch (error) {
+          console.log('Error parsing removeImages JSON:', error.message);
           imagesToRemove = [];
         }
       }
       
       if (imagesToRemove && imagesToRemove.length > 0) {
         const imageArray = Array.isArray(imagesToRemove) ? imagesToRemove : [imagesToRemove];
+        console.log('📷 Images to remove:', imageArray);
         
         // Remove images from Cloudinary
         for (const imageUrl of imageArray) {
           try {
             const publicId = extractPublicId(imageUrl);
             await deleteImage(publicId);
+            console.log('🗑️ Deleted image from Cloudinary:', publicId);
           } catch (cleanupError) {
             console.error("Error removing image:", cleanupError);
           }
@@ -327,12 +334,38 @@ const updateProduct = async (req, res) => {
         
         // Remove from array
         updatedImages = updatedImages.filter(img => !imageArray.includes(img));
+        console.log('📷 Images after removal:', updatedImages.length);
       }
     }
 
-    // Add new images
+    // Add new images if any
     if (newImages.length > 0) {
       updatedImages = [...updatedImages, ...newImages];
+      console.log('📷 Images after adding new ones:', updatedImages.length);
+    }
+
+    // Validate that at least one image remains
+    if (updatedImages.length === 0) {
+      console.log('❌ No images remaining after update');
+      
+      // Clean up any uploaded images since update will fail
+      if (newImages.length > 0) {
+        for (const imageUrl of newImages) {
+          try {
+            const publicId = extractPublicId(imageUrl);
+            if (publicId) {
+              await deleteImage(publicId);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up uploaded image:", cleanupError);
+          }
+        }
+      }
+      
+      return res.status(400).json({
+        success: false,
+        message: "At least one product image is required"
+      });
     }
 
     // Process tags
@@ -383,7 +416,8 @@ const updateProduct = async (req, res) => {
       images: updatedImages
     };
     
-    console.log('📦 Update: Final updateData:', updateData);
+    console.log('📦 Update: Final updateData images:', updateData.images);
+    console.log('📦 Update: Final updateData (full):', updateData);
 
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
