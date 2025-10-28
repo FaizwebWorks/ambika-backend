@@ -1,0 +1,22 @@
+version: 1
+services:
+  - type: web
+    name: ambika-backend
+    env: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: NPM_CONFIG_PRODUCTION
+        value: true
+    domains:
+      - ambika-backend.onrender.com
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+    region: oregon

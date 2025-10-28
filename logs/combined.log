@@ -9530,3 +9530,47 @@
 2025-10-28 18:18:46 [INFO] [ambika-api]: Request completed
 2025-10-28 18:18:46 [INFO] [ambika-api]: Incoming request
 2025-10-28 18:18:47 [INFO] [ambika-api]: Request completed
+2025-10-28 19:27:15 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-28 19:27:16 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
+2025-10-28 19:31:06 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-28 19:47:48 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 19:48:06 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-00.1lkkm5z.mongodb.net
+2025-10-28 19:48:18 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:18 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:18 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:18 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:18 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:18 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:18 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:18 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:18 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:18 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:21 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:21 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:25 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:25 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:25 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:26 [WARN] [ambika-api]: Slow request detected
+2025-10-28 19:48:26 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:28 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:30 [WARN] [ambika-api]: Slow request detected
+2025-10-28 19:48:30 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:30 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:30 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:38 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:38 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:39 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:39 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-28 19:48:42 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
+2025-10-28 19:48:43 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:43 [INFO] [ambika-api]: Incoming request
+2025-10-28 19:48:44 [WARN] [ambika-api]: Slow request detected
+2025-10-28 19:48:44 [INFO] [ambika-api]: Request completed
+2025-10-28 19:48:45 [WARN] [ambika-api]: Slow request detected
+2025-10-28 19:48:45 [INFO] [ambika-api]: Request completed

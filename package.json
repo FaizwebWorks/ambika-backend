@@ -22,7 +22,12 @@
     "setup": "chmod +x setup.sh && ./setup.sh",
     "clean:logs": "rm -rf logs/*.log",
     "health": "curl http://localhost:3000/health || curl https://ambika-backend-weyi.onrender.com/health",
-    "build": "echo 'No build step required for Node.js'"
+    "build": "echo 'No build step required for Node.js'",
+    "deploy": "chmod +x deploy.sh && ./deploy.sh",
+    "production": "NODE_ENV=production npm start",
+    "lint": "echo 'Add ESLint configuration if needed'",
+    "security-check": "npm audit",
+    "prestart": "npm run security-check"
   },
   "keywords": [],
   "author": "",
