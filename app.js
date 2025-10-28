@@ -4,18 +4,14 @@ const express = require("express");
 const connectDB = require("./config/db");
 const logger = require("./utils/logger");
 
-// Import optimized middleware
+// Import essential middleware only
 const {
   requestTiming,
-  memoryMonitoring,
-  requestSizeLimit,
   optimizedCompression,
   securityHeaders,
-  corsMiddleware,
   healthCheck,
   requestLogger,
-  dbConnectionCheck,
-  apiVersioning
+  dbConnectionCheck
 } = require("./middleware/performance");
 
 const {
@@ -47,13 +43,12 @@ app.set('trust proxy', 1);
 // Connect to database
 connectDB();
 
-// Security and performance middleware (order matters)
-// app.use(ipBlocking); // Block malicious IPs first - temporarily disabled
-app.use(requestTiming); // Track request timing
-app.use(memoryMonitoring); // Monitor memory usage
-app.use(requestSizeLimit('50mb')); // Limit request size
-app.use(optimizedCompression); // Compress responses
-app.use(securityHeaders); // Security headers
+// Essential middleware only (reduced memory footprint)
+app.use(requestTiming); // Essential timing
+app.use(optimizedCompression); // Essential compression
+if (process.env.NODE_ENV === 'production') {
+  app.use(securityHeaders); // Security headers only in production
+}
 
 // CORS configuration for both production and development
 const corsOptions = {
@@ -121,11 +116,7 @@ app.use((req, res, next) => {
   express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
 });
 
-app.use(dbConnectionCheck); // Check DB connection
-// app.use(apiVersioning); // API versioning - temporarily disabled
-
-// Rate limiting
-// app.use(generalRateLimit); // General rate limiting - temporarily disabled
+// Minimal essential checks only
 
 // Request logging - Only in development and production (not test)
 if (process.env.NODE_ENV !== 'test') {

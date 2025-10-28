@@ -24,24 +24,31 @@ const logFormat = winston.format.combine(
   })
 );
 
-// Create logger
+// Ultra lightweight logger for production
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: logFormat,
+  level: process.env.NODE_ENV === 'production' ? 'error' : 'warn', // Only errors in production
+  format: winston.format.simple(), // Simple format to save memory
   defaultMeta: { service: 'ambika-api' },
-  transports: [
-    // Write all logs with level 'error' and below to error.log
+  transports: process.env.NODE_ENV === 'production' ? [
+    // Production: Only log errors to a single file
     new winston.transports.File({
       filename: path.join(logDir, 'error.log'),
       level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
+      maxsize: 1048576, // 1MB only
+      maxFiles: 1,      // Only 1 file
     }),
-    // Write all logs with level 'info' and below to combined.log
+  ] : [
+    // Development: More detailed logging
+    new winston.transports.File({
+      filename: path.join(logDir, 'error.log'),
+      level: 'error',
+      maxsize: 2097152,
+      maxFiles: 2,
+    }),
     new winston.transports.File({
       filename: path.join(logDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
+      maxsize: 2097152,
+      maxFiles: 2,
     }),
   ],
 });

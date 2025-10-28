@@ -9732,3 +9732,13 @@
 2025-10-29 02:22:33 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
 2025-10-29 02:22:35 [INFO] [ambika-api]: Server is running on port 3000
 2025-10-29 02:22:36 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
+2025-10-29 02:25:50 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:25:51 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-00.1lkkm5z.mongodb.net
+2025-10-29 02:26:02 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:26:03 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
+2025-10-29 02:26:15 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:26:16 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
+2025-10-29 02:26:29 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:26:29 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
+2025-10-29 02:26:41 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:26:42 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net

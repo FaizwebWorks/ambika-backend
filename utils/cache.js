@@ -1,31 +1,21 @@
-// Cache implementation using Map for in-memory caching
+// Minimal cache for memory optimization
 class MemoryCache {
-  constructor(ttl = 300000) { // 5 minutes default TTL
+  constructor(maxSize = 50) {
     this.cache = new Map();
-    this.ttl = ttl;
+    this.maxSize = maxSize;
   }
 
-  set(key, value, customTTL = null) {
-    const expiresAt = Date.now() + (customTTL || this.ttl);
-    this.cache.set(key, {
-      value,
-      expiresAt
-    });
+  set(key, value) {
+    // Remove oldest entry if cache is full
+    if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
   }
 
   get(key) {
-    const item = this.cache.get(key);
-    
-    if (!item) {
-      return null;
-    }
-
-    if (Date.now() > item.expiresAt) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return item.value;
+    return this.cache.get(key) || null;
   }
 
   delete(key) {
@@ -35,104 +25,42 @@ class MemoryCache {
   clear() {
     this.cache.clear();
   }
-
-  // Clean expired entries
-  cleanup() {
-    const now = Date.now();
-    for (const [key, item] of this.cache.entries()) {
-      if (now > item.expiresAt) {
-        this.cache.delete(key);
-      }
-    }
-  }
-
-  // Get cache stats
-  stats() {
-    return {
-      size: this.cache.size,
-      ttl: this.ttl
-    };
-  }
 }
 
-// Create cache instances
-const productCache = new MemoryCache(600000); // 10 minutes for products
-const categoryCache = new MemoryCache(1800000); // 30 minutes for categories
-const userCache = new MemoryCache(300000); // 5 minutes for user data
+// Simple cache instances (small memory footprint)
+const productCache = new MemoryCache(20); // Only 20 products cached
+const categoryCache = new MemoryCache(10); // Only 10 categories cached
 
-// Cache middleware
-const cacheMiddleware = (cache, keyGenerator, ttl = null) => {
+// Simple cache middleware
+const cacheMiddleware = (cache, keyFn) => {
   return (req, res, next) => {
-    const key = keyGenerator(req);
-    const cachedData = cache.get(key);
-
-    if (cachedData) {
-      return res.json(cachedData);
-    }
-
-    // Store original json method
+    if (process.env.NODE_ENV !== 'production') return next(); // No caching in dev
+    
+    const key = keyFn(req);
+    const cached = cache.get(key);
+    
+    if (cached) return res.json(cached);
+    
     const originalJson = res.json;
-
-    // Override json method to cache response
     res.json = function(data) {
-      if (res.statusCode === 200 && data.success) {
-        cache.set(key, data, ttl);
-      }
+      if (res.statusCode === 200) cache.set(key, data);
       return originalJson.call(this, data);
     };
-
+    
     next();
   };
 };
 
-// Key generators
+// Simple key generators
 const keyGenerators = {
-  productList: (req) => `products:${JSON.stringify(req.query)}`,
-  productById: (req) => `product:${req.params.id}`,
-  categories: (req) => `categories:${JSON.stringify(req.query)}`,
-  categoryById: (req) => `category:${req.params.id}`,
-  userProfile: (req) => `user:${req.user?.id}`
+  productById: (req) => `p:${req.params.id}`,
+  categoryById: (req) => `c:${req.params.id}`
 };
-
-// Cache invalidation helpers
-const cacheInvalidation = {
-  invalidateProducts: () => {
-    productCache.clear();
-  },
-  
-  invalidateCategories: () => {
-    categoryCache.clear();
-  },
-  
-  invalidateUser: (userId) => {
-    userCache.delete(`user:${userId}`);
-  },
-  
-  invalidateProduct: (productId) => {
-    // Remove specific product and clear product lists
-    productCache.delete(`product:${productId}`);
-    // Clear all product list caches (could be optimized further)
-    for (const [key] of productCache.cache.entries()) {
-      if (key.startsWith('products:')) {
-        productCache.delete(key);
-      }
-    }
-  }
-};
-
-// Cleanup expired cache entries every 10 minutes
-setInterval(() => {
-  productCache.cleanup();
-  categoryCache.cleanup();
-  userCache.cleanup();
-}, 600000);
 
 module.exports = {
   MemoryCache,
   productCache,
   categoryCache,
-  userCache,
   cacheMiddleware,
-  keyGenerators,
-  cacheInvalidation
+  keyGenerators
 };

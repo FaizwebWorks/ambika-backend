@@ -10,57 +10,31 @@ const { getSecurityHeaders } = require('../utils/security');
 const logger = require('../utils/logger');
 const cache = require('../utils/cache');
 
-// Request timing middleware
+// Lightweight request timing (only for slow requests)
 const requestTiming = (req, res, next) => {
-  const startTime = Date.now();
-  
-  // Add timing header before response starts
-  const originalSend = res.send;
-  res.send = function(data) {
-    const duration = Date.now() - startTime;
-    
-    // Log slow requests
-    if (duration > 1000) {
-      logger.warn('Slow request detected', {
-        method: req.method,
-        url: req.url,
-        duration: `${duration}ms`,
-        ip: req.ip,
-        userAgent: req.get('User-Agent')
-      });
-    }
-    
-    // Add timing header before sending response
-    if (!res.headersSent) {
-      res.set('X-Response-Time', `${duration}ms`);
-    }
-    
-    return originalSend.call(this, data);
-  };
-  
+  if (process.env.NODE_ENV === 'production') {
+    // In production, only track very slow requests
+    const startTime = Date.now();
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      if (duration > 2000) { // Only log requests > 2 seconds
+        console.warn(`Slow request: ${req.method} ${req.url} - ${duration}ms`);
+      }
+    });
+  }
   next();
 };
 
-// Memory usage monitoring
+// Lightweight memory monitoring (only for critical situations)
 const memoryMonitoring = (req, res, next) => {
-  const memUsage = process.memoryUsage();
-  const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
-  const heapTotalMB = Math.round(memUsage.heapTotal / 1024 / 1024);
+  // Only check memory every 100 requests to reduce overhead
+  if (Math.random() > 0.01) return next();
   
-  // Log high memory usage
-  if (heapUsedMB > 500) { // Alert if using more than 500MB
-    logger.warn('High memory usage detected', {
-      heapUsed: `${heapUsedMB}MB`,
-      heapTotal: `${heapTotalMB}MB`,
-      rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
-      url: req.url
-    });
-  }
+  const heapUsed = process.memoryUsage().heapUsed / 1024 / 1024;
   
-  // Add memory headers for debugging (before response is sent)
-  if (process.env.NODE_ENV === 'development') {
-    res.set('X-Memory-Used', `${heapUsedMB}MB`);
-    res.set('X-Memory-Total', `${heapTotalMB}MB`);
+  // Only log if memory is critically high
+  if (heapUsed > 400) {
+    console.warn(`High memory: ${Math.round(heapUsed)}MB`);
   }
   
   next();
@@ -153,106 +127,60 @@ const corsMiddleware = cors({
   preflightContinue: false
 });
 
-// Health check endpoint
+// Lightweight health check
 const healthCheck = (req, res) => {
-  const uptime = process.uptime();
-  const memUsage = process.memoryUsage();
-  const cpuUsage = process.cpuUsage();
+  const uptime = Math.floor(process.uptime() / 60);
+  const memUsed = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
   
-  const health = {
+  res.json({
     status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: `${Math.floor(uptime / 60)}m ${Math.floor(uptime % 60)}s`,
-    memory: {
-      used: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
-      total: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
-      external: `${Math.round(memUsage.external / 1024 / 1024)}MB`
-    },
-    cpu: {
-      user: cpuUsage.user,
-      system: cpuUsage.system
-    },
-    system: {
-      platform: os.platform(),
-      arch: os.arch(),
-      nodeVersion: process.version,
-      loadAverage: os.loadavg()
-    }
-  };
-  
-  // Check if cluster is being used
-  if (cluster.isWorker) {
-    health.worker = {
-      id: cluster.worker.id,
-      pid: process.pid
-    };
-  }
-  
-  res.json(health);
+    uptime: `${uptime}m`,
+    memory: `${memUsed}MB`
+  });
 };
 
-// Request logging middleware
+// Minimal request logging (only errors and important requests)
 const requestLogger = (req, res, next) => {
-  const startTime = Date.now();
-  
-  // Log request
-  logger.info('Incoming request', {
-    method: req.method,
-    url: req.url,
-    ip: req.ip,
-    userAgent: req.get('User-Agent'),
-    contentLength: req.get('Content-Length') || 0
-  });
-  
-  // Log response
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    
-    logger.info('Request completed', {
-      method: req.method,
-      url: req.url,
-      statusCode: res.statusCode,
-      duration: `${duration}ms`,
-      contentLength: res.get('Content-Length') || 0
+  if (process.env.NODE_ENV === 'production') {
+    // In production, only log errors and auth requests
+    res.on('finish', () => {
+      if (res.statusCode >= 400 || req.url.includes('/login') || req.url.includes('/register')) {
+        console.log(`${req.method} ${req.url} - ${res.statusCode}`);
+      }
     });
-  });
-  
+  }
   next();
 };
 
-// Request caching middleware
+// Simple caching for critical endpoints only
 const cacheMiddleware = (ttl = 300) => {
-  return async (req, res, next) => {
-    // Only cache GET requests
-    if (req.method !== 'GET') {
+  const simpleCache = new Map();
+  
+  return (req, res, next) => {
+    // Only cache specific GET endpoints to save memory
+    if (req.method !== 'GET' || !req.url.includes('/api/products')) {
       return next();
     }
     
-    const cacheKey = `request:${req.originalUrl}`;
+    const cacheKey = req.originalUrl;
+    const cached = simpleCache.get(cacheKey);
     
-    try {
-      const cachedResponse = await cache.get(cacheKey);
-      
-      if (cachedResponse) {
-        logger.info('Cache hit', { url: req.url });
-        return res.json(cachedResponse);
-      }
-      
-      // Override res.json to cache the response
-      const originalJson = res.json;
-      res.json = function(data) {
-        // Only cache successful responses
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          cache.set(cacheKey, data, ttl);
-        }
-        return originalJson.call(this, data);
-      };
-      
-      next();
-    } catch (error) {
-      logger.error('Cache middleware error:', error);
-      next();
+    if (cached && Date.now() - cached.timestamp < ttl * 1000) {
+      return res.json(cached.data);
     }
+    
+    const originalJson = res.json;
+    res.json = function(data) {
+      simpleCache.set(cacheKey, { data, timestamp: Date.now() });
+      // Limit cache size
+      if (simpleCache.size > 50) {
+        const firstKey = simpleCache.keys().next().value;
+        simpleCache.delete(firstKey);
+      }
+      return originalJson.call(this, data);
+    };
+    
+    next();
   };
 };
 
