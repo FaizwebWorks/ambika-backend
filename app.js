@@ -63,6 +63,7 @@ const corsOptions = {
     
     const allowedOrigins = [
       'https://ambika-frontend.vercel.app/', // Production frontend
+      'https://ambika-international-ixiy2810o-faizwebworks-projects.vercel.app/', // New production frontend
       'http://localhost:5173',              // Development frontend
       'http://localhost:3000',              // Alternative dev port
       'http://127.0.0.1:5173',             // Alternative localhost
