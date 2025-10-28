@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies and fix security issues
+RUN npm ci --only=production && npm audit fix --force || true
 
 # Copy source code
 COPY . .

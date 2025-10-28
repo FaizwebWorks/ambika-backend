@@ -3049,3 +3049,25 @@
 2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
 2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
 2025-10-28 19:48:02 [ERROR] [ambika-api]: Database connection lost
+2025-10-28 20:08:21 [ERROR] [ambika-api]: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (/Users/faizalshaikh/Desktop/ambika/backend/node_modules/express/lib/application.js:635:24)
+    at Object.<anonymous> (/Users/faizalshaikh/Desktop/ambika/backend/server.js:48:22)
+    at Module._compile (node:internal/modules/cjs/loader:1734:14)
+    at Object..js (node:internal/modules/cjs/loader:1899:10)
+    at Module.load (node:internal/modules/cjs/loader:1469:32)
+    at Module._load (node:internal/modules/cjs/loader:1286:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+2025-10-28 20:08:21 [ERROR] [ambika-api]: Error: listen EADDRINUSE: address already in use :::3000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at app.listen (/Users/faizalshaikh/Desktop/ambika/backend/node_modules/express/lib/application.js:635:24)
+    at Object.<anonymous> (/Users/faizalshaikh/Desktop/ambika/backend/server.js:48:22)
+    at Module._compile (node:internal/modules/cjs/loader:1734:14)
+    at Object..js (node:internal/modules/cjs/loader:1899:10)
+    at Module.load (node:internal/modules/cjs/loader:1469:32)
+    at Module._load (node:internal/modules/cjs/loader:1286:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
