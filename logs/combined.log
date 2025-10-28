@@ -9688,3 +9688,47 @@
 2025-10-29 02:14:26 [INFO] [ambika-api]: Request completed
 2025-10-29 02:15:14 [INFO] [ambika-api]: Server is running on port 3000
 2025-10-29 02:15:15 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-00.1lkkm5z.mongodb.net
+2025-10-29 02:15:26 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:26 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:26 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:26 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:26 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:26 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:34 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:34 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:34 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:35 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:54 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:54 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:54 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:54 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:56 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:57 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:57 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:57 [INFO] [ambika-api]: Request completed
+2025-10-29 02:15:58 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:15:59 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:12 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:12 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:12 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:12 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:22 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:22 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:22 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:22 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:34 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:34 [INFO] [ambika-api]: Request completed
+2025-10-29 02:16:34 [INFO] [ambika-api]: Incoming request
+2025-10-29 02:16:35 [INFO] [ambika-api]: Request completed
+2025-10-29 02:17:47 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:17:48 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
+2025-10-29 02:17:58 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:17:59 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-00.1lkkm5z.mongodb.net
+2025-10-29 02:18:05 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:18:06 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
+2025-10-29 02:18:33 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:18:34 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
+2025-10-29 02:22:32 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:22:33 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-01.1lkkm5z.mongodb.net
+2025-10-29 02:22:35 [INFO] [ambika-api]: Server is running on port 3000
+2025-10-29 02:22:36 [INFO] [ambika-api]: MongoDB connected successfully to ac-fgrdgje-shard-00-02.1lkkm5z.mongodb.net
