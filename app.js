@@ -62,7 +62,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'https://ambika-frontend.vercel.app', // Production frontend
+      'https://ambika-frontend.vercel.app/', // Production frontend
       'http://localhost:5173',              // Development frontend
       'http://localhost:3000',              // Alternative dev port
       'http://127.0.0.1:5173',             // Alternative localhost
@@ -88,8 +88,26 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // app.use(corsMiddleware); // Remove custom CORS middleware for deployment
-app.use(express.json({ limit: '10mb' })); // Parse JSON with size limit
-app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse URL encoded data
+
+// Skip body parsing for routes that use multer (FormData)
+app.use((req, res, next) => {
+  // Skip JSON parsing for category and product routes that use FormData
+  if (req.path.startsWith('/api/categories') || req.path.startsWith('/api/products')) {
+    return next();
+  }
+  // Apply JSON parsing for other routes
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  // Skip URL-encoded parsing for category and product routes that use FormData
+  if (req.path.startsWith('/api/categories') || req.path.startsWith('/api/products')) {
+    return next();
+  }
+  // Apply URL-encoded parsing for other routes
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
+
 app.use(dbConnectionCheck); // Check DB connection
 // app.use(apiVersioning); // API versioning - temporarily disabled
 

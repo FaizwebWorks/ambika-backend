@@ -114,17 +114,52 @@ const getCategoryById = async (req, res) => {
 // Create category (Admin only)
 const createCategory = async (req, res) => {
   try {
-    const { name, description, isActive = true } = req.body;
+    console.log('=== CONTROLLER DEBUG ===');
+    console.log('req.body type:', typeof req.body);
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+    console.log('req.headers content-type:', req.headers['content-type']);
+    console.log('req.method:', req.method);
+    console.log('req.url:', req.url);
+    
+    // Validate req.body exists
+    if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
+      console.log('❌ Request body is missing or empty');
+      return res.status(400).json({
+        success: false,
+        message: 'Request body is missing',
+        error: 'No form data received',
+        debug: {
+          bodyType: typeof req.body,
+          bodyKeys: req.body ? Object.keys(req.body) : 'null',
+          files: req.files,
+          contentType: req.headers['content-type']
+        }
+      });
+    }
+    
+    const { name, description } = req.body;
+    const isActive = req.body.isActive === 'true' || req.body.isActive === true;
+    
+    console.log('✅ Parsed data:', { name, description, isActive });
+    
+    // Validate required fields
+    if (!name || name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Category name is required'
+      });
+    }
 
     // Check if category already exists
     const existingCategory = await Category.findOne({ 
-      name: { $regex: new RegExp(`^${name}$`, 'i') } 
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') } 
     });
 
     if (existingCategory) {
       // If image was uploaded, delete it from Cloudinary
-      if (req.file) {
-        const publicId = extractPublicId(req.file.path);
+      if (req.files && req.files.image && req.files.image[0]) {
+        const publicId = extractPublicId(req.files.image[0].path);
         if (publicId) {
           await deleteImage(publicId);
         }
@@ -138,14 +173,14 @@ const createCategory = async (req, res) => {
 
     // Create category data
     const categoryData = {
-      name,
-      description,
+      name: name.trim(),
+      description: description ? description.trim() : '',
       isActive
     };
 
     // Add image if uploaded
-    if (req.file) {
-      categoryData.image = req.file.path;
+    if (req.files && req.files.image && req.files.image[0]) {
+      categoryData.image = req.files.image[0].path;
     }
 
     const category = new Category(categoryData);
@@ -160,8 +195,8 @@ const createCategory = async (req, res) => {
     console.error('Create category error:', error);
     
     // If image was uploaded, delete it from Cloudinary
-    if (req.file) {
-      const publicId = extractPublicId(req.file.path);
+    if (req.files && req.files.image && req.files.image[0]) {
+      const publicId = extractPublicId(req.files.image[0].path);
       if (publicId) {
         await deleteImage(publicId);
       }
@@ -184,8 +219,8 @@ const updateCategory = async (req, res) => {
     const category = await Category.findById(id);
     if (!category) {
       // If new image was uploaded, delete it from Cloudinary
-      if (req.file) {
-        const publicId = extractPublicId(req.file.path);
+      if (req.files && req.files.image && req.files.image[0]) {
+        const publicId = extractPublicId(req.files.image[0].path);
         if (publicId) {
           await deleteImage(publicId);
         }
@@ -206,8 +241,8 @@ const updateCategory = async (req, res) => {
 
       if (existingCategory) {
         // If new image was uploaded, delete it from Cloudinary
-        if (req.file) {
-          const publicId = extractPublicId(req.file.path);
+        if (req.files && req.files.image && req.files.image[0]) {
+          const publicId = extractPublicId(req.files.image[0].path);
           if (publicId) {
             await deleteImage(publicId);
           }
@@ -229,14 +264,14 @@ const updateCategory = async (req, res) => {
     if (isActive !== undefined) category.isActive = isActive;
 
     // Update image if new one uploaded
-    if (req.file) {
-      category.image = req.file.path;
+    if (req.files && req.files.image && req.files.image[0]) {
+      category.image = req.files.image[0].path;
     }
 
     await category.save();
 
     // Delete old image from Cloudinary if new image was uploaded
-    if (req.file && oldImageUrl) {
+    if (req.files && req.files.image && req.files.image[0] && oldImageUrl) {
       const oldPublicId = extractPublicId(oldImageUrl);
       if (oldPublicId) {
         await deleteImage(oldPublicId);
@@ -252,8 +287,8 @@ const updateCategory = async (req, res) => {
     console.error('Update category error:', error);
     
     // If new image was uploaded, delete it from Cloudinary
-    if (req.file) {
-      const publicId = extractPublicId(req.file.path);
+    if (req.files && req.files.image && req.files.image[0]) {
+      const publicId = extractPublicId(req.files.image[0].path);
       if (publicId) {
         await deleteImage(publicId);
       }

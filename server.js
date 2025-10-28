@@ -65,9 +65,12 @@ if (CLUSTER_MODE && cluster.isMaster) {
       
       // Close database connections
       const mongoose = require('mongoose');
-      mongoose.connection.close(() => {
+      mongoose.connection.close().then(() => {
         logger.info('MongoDB connection closed');
         process.exit(0);
+      }).catch((err) => {
+        logger.error('Error closing MongoDB connection:', err);
+        process.exit(1);
       });
     });
 

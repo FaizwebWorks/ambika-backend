@@ -64,7 +64,22 @@ router.post(
   "/",
   protect,
   admin,
-  upload.array('images', 5), // Handle multiple image uploads (max 5)
+  (req, res, next) => {
+    console.log('=== PRODUCT ROUTE - BEFORE MULTER ===');
+    console.log('Content-Type:', req.get('Content-Type'));
+    console.log('Body before multer:', req.body);
+    console.log('Files before multer:', req.files);
+    next();
+  },
+  upload.fields([{ name: 'images', maxCount: 5 }]), // Handle FormData with multiple images
+  (req, res, next) => {
+    console.log('=== PRODUCT ROUTE - AFTER MULTER ===');
+    console.log('Body after multer:', req.body);
+    console.log('Files after multer:', req.files);
+    console.log('Body type:', typeof req.body);
+    console.log('Body keys:', Object.keys(req.body || {}));
+    next();
+  },
   asyncHandler(createProduct)
 );
 
@@ -72,7 +87,7 @@ router.put(
   "/:id", 
   protect, 
   admin, 
-  upload.array('images', 5), // Handle multiple image uploads (max 5)
+  upload.fields([{ name: 'images', maxCount: 5 }]), // Handle FormData with multiple images
   asyncHandler(updateProduct)
 );
 

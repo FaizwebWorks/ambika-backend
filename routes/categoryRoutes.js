@@ -22,7 +22,23 @@ router.post(
   "/",
   protect,
   admin,
-  upload.single('image'), // Handle single image upload
+  (req, res, next) => {
+    console.log('=== BEFORE MULTER ===');
+    console.log('Content-Type:', req.get('Content-Type'));
+    console.log('Body before multer:', req.body);
+    console.log('Files before multer:', req.files);
+    console.log('Raw headers:', req.rawHeaders);
+    next();
+  },
+  upload.fields([{ name: 'image', maxCount: 1 }]), // Handle FormData with optional image
+  (req, res, next) => {
+    console.log('=== AFTER MULTER ===');
+    console.log('Body after multer:', req.body);
+    console.log('Files after multer:', req.files);
+    console.log('Body type:', typeof req.body);
+    console.log('Body keys:', Object.keys(req.body || {}));
+    next();
+  },
   [
     check("name", "Category name is required").notEmpty(),
   ],
@@ -33,7 +49,7 @@ router.put(
   "/:id", 
   protect, 
   admin, 
-  upload.single('image'), // Handle single image upload
+  upload.fields([{ name: 'image', maxCount: 1 }]), // Handle FormData with optional image
   updateCategory
 );
 

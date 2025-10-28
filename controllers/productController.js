@@ -156,8 +156,9 @@ const createProduct = async (req, res) => {
     }
 
     // Handle images from multer
-    const images = req.files ? req.files.map(file => file.path) : [];
-    console.log('📷 Images processed:', images.length);
+    const uploadedFiles = req.files && req.files.images ? req.files.images : [];
+    const images = uploadedFiles.map(file => file.path);
+    console.log('📷 Images processed:', images.length, 'files:', uploadedFiles);
     
     if (images.length === 0) {
       console.log('❌ No images provided');
@@ -234,9 +235,10 @@ const createProduct = async (req, res) => {
     console.error("❌ Error stack:", error.stack);
     
     // Clean up uploaded images if product creation fails
-    if (req.files && req.files.length > 0) {
+    const uploadedFiles = req.files && req.files.images ? req.files.images : [];
+    if (uploadedFiles.length > 0) {
       console.log('🧹 Cleaning up uploaded images...');
-      for (const file of req.files) {
+      for (const file of uploadedFiles) {
         try {
           const publicId = extractPublicId(file.path);
           if (publicId) {
@@ -295,7 +297,8 @@ const updateProduct = async (req, res) => {
     }
 
     // Handle new images from multer
-    const newImages = req.files ? req.files.map(file => file.path) : [];
+    const uploadedFiles = req.files && req.files.images ? req.files.images : [];
+    const newImages = uploadedFiles.map(file => file.path);
 
     // Handle image removal (parse JSON if string)
     let updatedImages = [...existingProduct.images];
@@ -399,8 +402,9 @@ const updateProduct = async (req, res) => {
     console.error("Update product error:", error);
     
     // Clean up uploaded images if update fails
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
+    const uploadedFiles = req.files && req.files.images ? req.files.images : [];
+    if (uploadedFiles.length > 0) {
+      for (const file of uploadedFiles) {
         try {
           const publicId = extractPublicId(file.path);
           await deleteImage(publicId);
