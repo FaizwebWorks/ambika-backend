@@ -74,9 +74,11 @@ const connectDB = async () => {
     logger.error("MongoDB connection failed:", error.message);
     console.error("MongoDB connection failed:", error.message);
     
-    // In production, exit on connection failure
-    // In development, retry after delay
-    if (process.env.NODE_ENV === 'production') {
+    // For Render, don't exit immediately - let the server start and retry
+    if (process.env.RENDER) {
+      console.log('Render deployment: Starting server anyway, will retry connection...');
+      setTimeout(connectDB, 10000); // Retry after 10 seconds
+    } else if (process.env.NODE_ENV === 'production') {
       process.exit(1);
     } else {
       console.log('Retrying connection in 5 seconds...');

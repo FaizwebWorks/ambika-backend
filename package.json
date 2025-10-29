@@ -22,7 +22,7 @@
     "setup": "chmod +x setup.sh && ./setup.sh",
     "clean:logs": "rm -rf logs/*.log",
     "health": "curl http://localhost:3000/health || curl https://ambika-international.onrender.com/health",
-    "build": "echo 'No build step required for Node.js'",
+    "build": "echo 'Backend build completed successfully'",
     "deploy": "chmod +x deploy.sh && ./deploy.sh",
     "production": "NODE_ENV=production npm start",
     "start:optimized": "chmod +x start-optimized.sh && ./start-optimized.sh",

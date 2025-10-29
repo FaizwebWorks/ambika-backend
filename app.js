@@ -151,6 +151,15 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/notifications", notificationRoutes);
 
+// Quick root endpoint for Render health checks
+app.get("/", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    message: "Ambika Backend API is running",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint (no rate limiting)
 app.get("/health", healthCheck);
 

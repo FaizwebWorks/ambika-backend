@@ -76,11 +76,11 @@ if (CLUSTER_MODE && cluster.isMaster) {
       });
     });
 
-    // Force close server after 30 seconds
+    // Force close server after 10 seconds (faster for Render)
     setTimeout(() => {
       logger.error('Could not close connections in time, forcefully shutting down');
       process.exit(1);
-    }, 30000);
+    }, 10000);
   };
 
   // Handle shutdown signals
