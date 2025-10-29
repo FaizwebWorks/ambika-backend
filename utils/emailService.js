@@ -15,22 +15,43 @@ class EmailService {
   // Initialize email transporter
   async initializeTransporter() {
     try {
+      // Test mode or development fallback
+      if (process.env.TEST_EMAIL_MODE === 'true' || process.env.NODE_ENV === 'development') {
+        try {
+          // Try to create Ethereal test account
+          const testAccount = await nodemailer.createTestAccount();
+          this.transporter = nodemailer.createTransport({
+            host: 'smtp.ethereal.email',
+            port: 587,
+            secure: false,
+            auth: {
+              user: testAccount.user,
+              pass: testAccount.pass
+            }
+          });
+          logger.info('Test email account created for development');
+          return;
+        } catch (testError) {
+          logger.warn('Failed to create test account, falling back to Gmail');
+        }
+      }
+
       // Gmail configuration
       if (process.env.EMAIL_SERVICE === 'gmail') {
-        this.transporter = nodemailer.createTransporter({
+        this.transporter = nodemailer.createTransport({
           service: 'gmail',
           auth: {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASSWORD // Use app password for Gmail
+            pass: process.env.EMAIL_PASS // Use app password for Gmail
           }
         });
       }
       // SMTP configuration
       else {
-        this.transporter = nodemailer.createTransporter({
+        this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST,
           port: process.env.SMTP_PORT || 587,
-          secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+          secure: process.env.SMTP_SECURE === 'true',
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASSWORD
@@ -43,6 +64,14 @@ class EmailService {
       logger.info('Email transporter initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize email transporter:', error);
+      
+      // For development, don't throw error - just log it
+      if (process.env.NODE_ENV === 'development') {
+        logger.warn('Email service will work in console-only mode for development');
+        this.transporter = null;
+        return;
+      }
+      
       throw new Error('Email service initialization failed');
     }
   }
@@ -114,6 +143,21 @@ class EmailService {
         <p>Invoice Number: ${variables.invoiceNumber}</p>
         <p>Amount: ${variables.amount}</p>
         <p>Due Date: ${variables.dueDate}</p>
+      `,
+      password_reset_otp: `
+        <h2>Password Reset OTP</h2>
+        <p>Dear ${variables.name || 'User'},</p>
+        <p>Your password reset OTP is: <strong style="font-size: 24px; color: #007bff;">${variables.otp}</strong></p>
+        <p>This OTP will expire in ${variables.expiryMinutes || '10'} minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <p>Best regards,<br>${variables.companyName || 'Ambika B2B'} Team</p>
+      `,
+      password_reset_success: `
+        <h2>Password Reset Successful</h2>
+        <p>Dear ${variables.name || 'User'},</p>
+        <p>Your password has been successfully reset.</p>
+        <p>If you didn't make this change, please contact our support team immediately at ${variables.supportEmail}.</p>
+        <p>Best regards,<br>${variables.companyName || 'Ambika B2B'} Team</p>
       `
     };
 
@@ -127,6 +171,24 @@ class EmailService {
         await this.initializeTransporter();
       }
 
+      // If still no transporter (development mode), just log and return success
+      if (!this.transporter) {
+        console.log('\n📧 EMAIL (Development Mode):');
+        console.log(`To: ${to}`);
+        console.log(`Subject: ${subject}`);
+        console.log(`Template: ${template}`);
+        if (variables.otp) {
+          console.log(`🔐 OTP: ${variables.otp}`);
+        }
+        console.log('---\n');
+        
+        return {
+          success: true,
+          messageId: 'dev-mode-' + Date.now(),
+          devMode: true
+        };
+      }
+
       const html = await this.loadTemplate(template, variables);
 
       const mailOptions = {
@@ -138,6 +200,12 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
+      
+      // If using test account, log the preview URL
+      if (this.transporter.options && this.transporter.options.host === 'smtp.ethereal.email') {
+        const previewUrl = nodemailer.getTestMessageUrl(result);
+        console.log(`📧 Test email sent! Preview: ${previewUrl}`);
+      }
       
       logger.info(`Email sent successfully to ${to}`, {
         messageId: result.messageId,
@@ -181,6 +249,35 @@ class EmailService {
         name: user.name,
         resetUrl,
         companyName: process.env.COMPANY_NAME || 'Ambika B2B'
+      }
+    });
+  }
+
+  // Send password reset OTP email
+  async sendPasswordResetOTP(user, otp) {
+    return this.sendEmail({
+      to: user.email,
+      subject: 'Password Reset OTP - Ambika B2B',
+      template: 'password_reset_otp',
+      variables: {
+        name: user.name,
+        otp: otp,
+        companyName: process.env.COMPANY_NAME || 'Ambika B2B',
+        expiryMinutes: '10'
+      }
+    });
+  }
+
+  // Send password reset success email
+  async sendPasswordResetSuccess(user) {
+    return this.sendEmail({
+      to: user.email,
+      subject: 'Password Reset Successful - Ambika B2B',
+      template: 'password_reset_success',
+      variables: {
+        name: user.name,
+        companyName: process.env.COMPANY_NAME || 'Ambika B2B',
+        supportEmail: process.env.SUPPORT_EMAIL || 'support@ambikab2b.com'
       }
     });
   }

@@ -7,6 +7,8 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  forgotPassword,
+  resetPassword,
   getWishlist,
   addToWishlist,
   removeFromWishlist,
@@ -62,6 +64,28 @@ router.post(
     check("password", "Password is required").notEmpty(),
   ],
   login
+);
+
+// Forgot password - Send OTP
+router.post(
+  "/forgot-password",
+  [
+    check("email", "Please include a valid email").isEmail(),
+  ],
+  forgotPassword
+);
+
+// Reset password with OTP
+router.post(
+  "/reset-password",
+  [
+    check("email", "Please include a valid email").isEmail(),
+    check("otp", "OTP is required").notEmpty(),
+    check("newPassword", "New password must be at least 6 characters").isLength({
+      min: 6,
+    }),
+  ],
+  resetPassword
 );
 
 // Get user profile

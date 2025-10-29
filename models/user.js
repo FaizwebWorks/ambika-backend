@@ -135,7 +135,15 @@ const userSchema = new mongoose.Schema(
       }
     },
     subscriptionEndDate: Date,
-    lastPaymentDate: Date
+    lastPaymentDate: Date,
+    // Password reset fields
+    resetPasswordOTP: String,
+    resetPasswordExpires: Date,
+    resetPasswordAttempts: {
+      type: Number,
+      default: 0
+    },
+    lastOTPRequest: Date
   },
   { timestamps: true }
 );

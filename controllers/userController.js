@@ -894,3 +894,208 @@ exports.setDefaultAddress = async (req, res) => {
     });
   }
 };
+
+// Forgot password - Send OTP
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No account found with this email address"
+      });
+    }
+
+    // Check for rate limiting (max 3 attempts per hour)
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    
+    // if (user.lastOTPRequest && user.lastOTPRequest > oneHourAgo && user.resetPasswordAttempts >= 3) {
+    //   return res.status(429).json({
+    //     success: false,
+    //     message: "Too many reset attempts. Please try again in 1 hour."
+    //   });
+    // }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set OTP expiry (10 minutes)
+    const otpExpiry = new Date(now.getTime() + 10 * 60 * 1000);
+
+    // Update user with OTP details
+    user.resetPasswordOTP = otp;
+    user.resetPasswordExpires = otpExpiry;
+    user.resetPasswordAttempts = (user.resetPasswordAttempts || 0) + 1;
+    user.lastOTPRequest = now;
+    
+    await user.save();
+
+    // Send OTP email
+    const emailService = require('../utils/emailService');
+    
+    try {
+      const emailResult = await emailService.sendEmail({
+        to: user.email,
+        subject: 'Password Reset OTP - Ambika International',
+        template: 'password_reset_otp',
+        variables: {
+          name: user.name || user.username,
+          otp: otp,
+          companyName: 'Ambika International',
+          expiryTime: '10 minutes'
+        }
+      });
+
+      // Handle different email sending scenarios
+      if (emailResult.devMode) {
+        res.status(200).json({
+          success: true,
+          message: "OTP generated successfully! Check console/logs for OTP (Development Mode)",
+          email: email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
+          devNote: "Email service in development mode - check server console for OTP"
+        });
+      } else {
+        res.status(200).json({
+          success: true,
+          message: "Password reset OTP sent to your email address",
+          email: email.replace(/(.{2})(.*)(@.*)/, '$1***$3')
+        });
+      }
+    } catch (emailError) {
+      console.error("Email sending error:", emailError);
+      
+      // For development, still return success but show OTP in console
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n🔐 DEVELOPMENT MODE - Password Reset OTP`);
+        console.log(`Email: ${email}`);
+        console.log(`OTP: ${otp}`);
+        console.log(`Expires: ${otpExpiry}`);
+        console.log(`Use this OTP in the reset password form\n`);
+        
+        res.status(200).json({
+          success: true,
+          message: "OTP generated successfully! Check server console for OTP (Development Mode)",
+          email: email.replace(/(.{2})(.*)(@.*)/, '$1***$3'),
+          devNote: "Check server console for OTP - Email service failed"
+        });
+      } else {
+        // Clear OTP data if email fails in production
+        user.resetPasswordOTP = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+        
+        res.status(500).json({
+          success: false,
+          message: "Failed to send reset email. Please try again."
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while processing password reset request"
+    });
+  }
+};
+
+// Verify OTP and reset password
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // Validate input
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, OTP, and new password are required"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long"
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "No account found with this email address"
+      });
+    }
+
+    // Check if OTP exists and is not expired
+    if (!user.resetPasswordOTP || !user.resetPasswordExpires) {
+      return res.status(400).json({
+        success: false,
+        message: "No password reset request found. Please request a new OTP."
+      });
+    }
+
+    if (user.resetPasswordExpires < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired. Please request a new one."
+      });
+    }
+
+    // Verify OTP
+    if (user.resetPasswordOTP !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP. Please check and try again."
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update password and clear reset fields
+    user.password = hashedPassword;
+    user.resetPasswordOTP = undefined;
+    user.resetPasswordExpires = undefined;
+    user.resetPasswordAttempts = 0;
+    user.lastOTPRequest = undefined;
+
+    await user.save();
+
+    // Send confirmation email
+    const emailService = require('../utils/emailService');
+    
+    try {
+      await emailService.sendEmail({
+        to: user.email,
+        subject: 'Password Reset Successful - Ambika International',
+        template: 'password_reset_success',
+        variables: {
+          name: user.name || user.username,
+          companyName: 'Ambika International',
+          timestamp: new Date().toLocaleString()
+        }
+      });
+    } catch (emailError) {
+      console.error("Confirmation email error:", emailError);
+      // Don't fail the request if confirmation email fails
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successful. You can now login with your new password."
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while resetting password"
+    });
+  }
+};

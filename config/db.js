@@ -7,7 +7,7 @@ const connectDB = async () => {
     mongoose.set('strictQuery', true);
     
     // Configure mongoose buffering options
-    mongoose.set('bufferCommands', false); // Disable mongoose command buffering
+    mongoose.set('bufferCommands', true); // Enable mongoose command buffering for stability
     
     // Optimized connection options for fast performance
     const connectionOptions = {
