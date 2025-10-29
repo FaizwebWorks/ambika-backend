@@ -45,12 +45,14 @@ if (CLUSTER_MODE && cluster.isMaster) {
 
 } else {
   // Worker process
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     const workerInfo = cluster.isWorker ? `Worker ${process.pid}` : 'Server';
     logger.info(`${workerInfo} is running on port ${PORT}`);
     
+    // Always show basic info for Render logs
+    console.log(`🚀 ${workerInfo} is running on http://localhost:${PORT}`);
+    
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🚀 ${workerInfo} is running on http://localhost:${PORT}`);
       console.log(`📋 Health check: http://localhost:${PORT}/health`);
       console.log(`📚 API docs: http://localhost:${PORT}/api`);
     }
