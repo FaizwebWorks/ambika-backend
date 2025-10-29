@@ -17,8 +17,7 @@ const getProducts = async (req, res) => {
       order = "desc",
       minPrice,
       maxPrice,
-      status,
-      tags
+      status
     } = req.query;
     
     // Build query
@@ -33,8 +32,7 @@ const getProducts = async (req, res) => {
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { tags: { $in: [new RegExp(search, "i")] } }
+        { description: { $regex: search, $options: "i" } }
       ];
     }
     
@@ -50,11 +48,7 @@ const getProducts = async (req, res) => {
       query.status = status;
     }
     
-    // Filter by tags
-    if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      query.tags = { $in: tagArray };
-    }
+    // Remove tags filter since we removed tags field
     
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -137,9 +131,10 @@ const createProduct = async (req, res) => {
       discountPrice,
       stock,
       category,
-      tags,
+      features,
+      specifications,
+      warranty,
       status = 'active',
-      specifications = {},
       minOrderQuantity = 1,
       featured = false
     } = req.body;
@@ -168,34 +163,41 @@ const createProduct = async (req, res) => {
       });
     }
 
-    // Process tags (convert comma-separated string to array)
-    const processedTags = typeof tags === 'string' 
-      ? tags.split(',').map(tag => tag.trim()).filter(Boolean)
-      : Array.isArray(tags) ? tags : [];
+    // Process features (convert comma-separated string to array)
+    const processedFeatures = typeof features === 'string' 
+      ? features.split('\n').map(feature => feature.trim()).filter(Boolean)
+      : Array.isArray(features) ? features : [];
 
-    console.log('🏷️ Processed tags:', processedTags);
+    console.log('✨ Processed features:', processedFeatures);
 
-    // Process specifications (parse JSON if string)
-    let parsedSpecs = specifications;
+    // Process specifications (convert key-value pairs or JSON to Map)
+    let processedSpecs = new Map();
+    
     if (typeof specifications === 'string') {
       try {
-        parsedSpecs = JSON.parse(specifications);
-        console.log('📋 Parsed specifications from JSON:', parsedSpecs);
+        // Try to parse as JSON first
+        const parsed = JSON.parse(specifications);
+        if (typeof parsed === 'object' && parsed !== null) {
+          Object.entries(parsed).forEach(([key, value]) => {
+            processedSpecs.set(key, value);
+          });
+        }
       } catch (error) {
-        console.log('❌ Error parsing specifications JSON:', error.message);
-        parsedSpecs = {};
+        // If not JSON, treat as key-value pairs separated by newlines
+        specifications.split('\n').forEach(line => {
+          const [key, ...valueParts] = line.split(':');
+          if (key && valueParts.length > 0) {
+            processedSpecs.set(key.trim(), valueParts.join(':').trim());
+          }
+        });
       }
-    } else {
-      console.log('📋 Specifications received as object:', parsedSpecs);
+    } else if (typeof specifications === 'object' && specifications !== null) {
+      Object.entries(specifications).forEach(([key, value]) => {
+        processedSpecs.set(key, value);
+      });
     }
     
-    const processedSpecs = {
-      material: parsedSpecs.material || '',
-      dimensions: parsedSpecs.dimensions || '',
-      warranty: parsedSpecs.warranty || ''
-    };
-    
-    console.log('✅ Final processed specifications:', processedSpecs);
+    console.log('📋 Processed specifications:', processedSpecs);
 
     console.log('💾 Creating product in database...');
 
@@ -207,9 +209,10 @@ const createProduct = async (req, res) => {
       discountPrice: discountPrice ? parseFloat(discountPrice) : undefined,
       stock: parseInt(stock) || 0,
       category,
-      tags: processedTags,
-      status,
+      features: processedFeatures,
       specifications: processedSpecs,
+      warranty: warranty?.trim(),
+      status,
       minOrderQuantity: parseInt(minOrderQuantity) || 1,
       featured: featured === 'true' || featured === true,
       images
@@ -277,9 +280,9 @@ const updateProduct = async (req, res) => {
       discountPrice,
       stock,
       category,
-      tags,
       status,
       specifications,
+      warranty,
       minOrderQuantity,
       featured,
       removeImages
@@ -408,9 +411,9 @@ const updateProduct = async (req, res) => {
       discountPrice: discountPrice && discountPrice !== '' ? parseFloat(discountPrice) : (discountPrice === '' ? null : existingProduct.discountPrice),
       stock: stock !== undefined && stock !== '' ? parseInt(stock) : existingProduct.stock,
       category: category || existingProduct.category,
-      tags: processedTags,
       status: status || existingProduct.status,
       specifications: processedSpecs,
+      warranty: warranty ? warranty.trim() : existingProduct.warranty,
       minOrderQuantity: minOrderQuantity && minOrderQuantity !== '' ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
       featured: featured !== undefined ? (featured === 'true' || featured === true) : existingProduct.featured,
       images: updatedImages

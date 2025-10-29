@@ -45,18 +45,24 @@ const productSchema = new mongoose.Schema({
     min: 1
   },
   
-  // Essential Specifications
-  specifications: {
-    material: String,
-    dimensions: String,
-    warranty: String
-  },
-  
-  // Organization & Search
-  tags: [{
+  // Product Features (array of strings)
+  features: [{
     type: String,
     trim: true
   }],
+  
+  // Product Specifications (flexible key-value pairs)
+  specifications: {
+    type: Map,
+    of: String,
+    default: {}
+  },
+  
+  // Warranty Information
+  warranty: {
+    type: String,
+    trim: true
+  },
   
   // Status & Features
   status: {
@@ -110,7 +116,7 @@ productSchema.virtual('stockStatus').get(function() {
 });
 
 // Index for search
-productSchema.index({ title: 'text', description: 'text', tags: 'text' });
+productSchema.index({ title: 'text', description: 'text' });
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ price: 1, discountPrice: 1 });
 

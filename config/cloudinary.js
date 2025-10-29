@@ -16,7 +16,13 @@ const storage = new CloudinaryStorage({
     folder: 'ambika-ecommerce', // Folder name in Cloudinary
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [
-      { width: 800, height: 800, crop: 'limit', quality: 'auto' }, // Optimize images
+      { 
+        width: 600, 
+        height: 600, 
+        crop: 'limit', 
+        quality: '70',  // Reduced quality from 'auto' to 60%
+        format: 'webp'  // Convert to WebP for better compression
+      }, 
     ],
   },
 });
@@ -25,7 +31,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 3 * 1024 * 1024, // Reduced to 3MB limit from 5MB
   },
   fileFilter: (req, file, cb) => {
     // Check file type
@@ -56,9 +62,39 @@ const extractPublicId = (url) => {
   return matches ? matches[1] : null;
 };
 
+// Helper function to generate optimized URLs for different use cases
+const getOptimizedImageUrl = (publicId, options = {}) => {
+  const {
+    width = 600,
+    height = 600,
+    quality = '70',
+    format = 'webp'
+  } = options;
+  
+  return cloudinary.url(publicId, {
+    width,
+    height,
+    crop: 'limit',
+    quality,
+    format,
+    fetch_format: 'auto',
+    dpr: 'auto'
+  });
+};
+
+// Pre-defined image variants for different use cases
+const IMAGE_VARIANTS = {
+  thumbnail: { width: 150, height: 150, quality: '50' },
+  card: { width: 300, height: 300, quality: '60' },
+  detail: { width: 600, height: 600, quality: '70' },
+  gallery: { width: 800, height: 800, quality: '80' }
+};
+
 module.exports = {
   cloudinary,
   upload,
   deleteImage,
-  extractPublicId
+  extractPublicId,
+  getOptimizedImageUrl,
+  IMAGE_VARIANTS
 };
