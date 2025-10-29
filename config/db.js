@@ -9,23 +9,25 @@ const connectDB = async () => {
     // Configure mongoose buffering options
     mongoose.set('bufferCommands', false); // Disable mongoose command buffering
     
-    // Balanced connection options for production
+    // Optimized connection options for fast performance
     const connectionOptions = {
-      // Connection stability options
-      serverSelectionTimeoutMS: 10000,  // Faster timeout for better UX
-      socketTimeoutMS: 45000,
-      maxPoolSize: 8,   // Balanced pool size for performance vs memory
-      minPoolSize: 2,   // Keep some connections alive
-      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-      heartbeatFrequencyMS: 10000, // Ping every 10 seconds
+      // High performance connection settings
+      serverSelectionTimeoutMS: 5000,   // Faster connection selection
+      socketTimeoutMS: 0,                // No socket timeout for long operations
+      maxPoolSize: 20,                   // More connections for better performance
+      minPoolSize: 5,                    // Keep more connections alive
+      maxIdleTimeMS: 60000,              // Keep connections alive longer
+      heartbeatFrequencyMS: 5000,        // More frequent health checks
       
       // Production-specific optimizations
       ...(process.env.NODE_ENV === 'production' && {
-        maxConnecting: 2,
+        maxConnecting: 5,                // Allow more concurrent connections
         retryWrites: true,
-        w: 'majority',
-        readPreference: 'primary',
-        readConcern: { level: 'majority' }
+        w: 1,                           // Faster write acknowledgment
+        readPreference: 'primaryPreferred', // Allow secondary reads for better performance
+        bufferMaxEntries: 0,            // Disable mongoose command buffering
+        useUnifiedTopology: true,
+        useNewUrlParser: true
       })
     };
     

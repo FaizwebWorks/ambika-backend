@@ -50,6 +50,10 @@ if (process.env.NODE_ENV === 'production') {
   app.use(securityHeaders); // Security headers only in production
 }
 
+// Add caching for faster API responses
+const { cacheMiddleware } = require("./middleware/performance");
+app.use(cacheMiddleware(300)); // Cache for 5 minutes
+
 // CORS configuration for both production and development
 const corsOptions = {
   origin: function (origin, callback) {
