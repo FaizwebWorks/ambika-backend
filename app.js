@@ -26,7 +26,47 @@ connectDB();
 
 app.use(compression());
 app.use(helmet());
-app.use(cors());
+
+// CORS configuration for credentials
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://ambika-international.vercel.app',
+      'https://ambika-frontend.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    console.log(`CORS Request from origin: ${origin}`);
+    
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      console.log(`CORS: Allowing origin: ${origin}`);
+      callback(null, true);
+    } else {
+      console.log(`CORS: Blocking origin: ${origin}`);
+      console.log(`CORS: Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['set-cookie'],
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

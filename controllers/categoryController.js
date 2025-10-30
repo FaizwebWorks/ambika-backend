@@ -114,15 +114,6 @@ const getCategoryById = async (req, res) => {
 // Create category (Admin only)
 const createCategory = async (req, res) => {
   try {
-    console.log('=== CONTROLLER DEBUG ===');
-    console.log('req.body type:', typeof req.body);
-    console.log('req.body:', req.body);
-    console.log('req.files:', req.files);
-    console.log('req.headers content-type:', req.headers['content-type']);
-    console.log('req.method:', req.method);
-    console.log('req.url:', req.url);
-    
-    // Validate req.body exists
     if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
       console.log('❌ Request body is missing or empty');
       return res.status(400).json({
