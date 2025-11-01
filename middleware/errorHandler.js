@@ -38,7 +38,8 @@ const handleJWTExpiredError = () =>
 
 // Send error in development
 const sendErrorDev = (err, res) => {
-  res.status(err.statusCode).json({
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
     success: false,
     error: err,
     message: err.message,
@@ -48,15 +49,21 @@ const sendErrorDev = (err, res) => {
 
 // Send error in production
 const sendErrorProd = (err, res) => {
+  const statusCode = err.statusCode || 500;
+  
   // Operational, trusted error: send message to client
   if (err.isOperational) {
-    res.status(err.statusCode).json({
+    res.status(statusCode).json({
       success: false,
       message: err.message
     });
   } else {
     // Programming or other unknown error: don't leak error details
-    logger.error('ERROR:', err);
+    logger.error('ERROR:', {
+      message: err.message,
+      stack: err.stack,
+      statusCode: statusCode
+    });
     
     res.status(500).json({
       success: false,
@@ -67,11 +74,20 @@ const sendErrorProd = (err, res) => {
 
 // Main error handler
 const errorHandler = (err, req, res, next) => {
+  // Set default status code if not set
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+
   let error = { ...err };
   error.message = err.message;
+  error.statusCode = err.statusCode;
 
   // Log error
-  logger.error(err);
+  logger.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    statusCode: err.statusCode
+  });
 
   // Mongoose bad ObjectId
   if (err.name === 'CastError') error = handleCastErrorDB(error);

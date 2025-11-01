@@ -51,12 +51,17 @@ const productSchema = new mongoose.Schema({
     trim: true
   }],
   
-  // Product Specifications (flexible key-value pairs)
-  specifications: {
-    type: Map,
-    of: String,
-    default: {}
-  },
+  // Product Specifications (array of key-value pairs)
+  specifications: [{
+    key: {
+      type: String,
+      trim: true
+    },
+    value: {
+      type: String,
+      trim: true
+    }
+  }],
   
   // Warranty Information
   warranty: {

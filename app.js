@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -18,8 +20,6 @@ const settingsRoutes = require('./routes/settingsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
-require('dotenv').config();
-
 const app = express();
 
 connectDB();
@@ -38,20 +38,21 @@ const corsOptions = {
       'http://127.0.0.1:5173'
     ];
     
-    console.log(`CORS Request from origin: ${origin}`);
+    // Only log CORS issues in development and only log blocked requests
+    const isDev = process.env.NODE_ENV === 'development';
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
-      console.log('CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
-      console.log(`CORS: Allowing origin: ${origin}`);
       callback(null, true);
     } else {
-      console.log(`CORS: Blocking origin: ${origin}`);
-      console.log(`CORS: Allowed origins: ${allowedOrigins.join(', ')}`);
+      // Only log blocked origins
+      if (isDev) {
+        console.log(`⚠️ CORS blocked origin: ${origin}`);
+      }
       callback(new Error('Not allowed by CORS'));
     }
   },

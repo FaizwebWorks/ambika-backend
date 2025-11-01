@@ -118,7 +118,7 @@ const getProductById = async (req, res) => {
 };
 
 // Create product (Admin only)
-const createProduct = async (req, res) => {
+const createProduct = async (req, res, next) => {
   try {
     // Debug logging
     console.log('📝 Create Product Request Body:', req.body);
@@ -170,31 +170,42 @@ const createProduct = async (req, res) => {
 
     console.log('✨ Processed features:', processedFeatures);
 
-    // Process specifications (convert key-value pairs or JSON to Map)
-    let processedSpecs = new Map();
+    // Process specifications
+    let processedSpecs = [];
     
     if (typeof specifications === 'string') {
       try {
         // Try to parse as JSON first
-        const parsed = JSON.parse(specifications);
-        if (typeof parsed === 'object' && parsed !== null) {
-          Object.entries(parsed).forEach(([key, value]) => {
-            processedSpecs.set(key, value);
-          });
+        processedSpecs = JSON.parse(specifications);
+        if (!Array.isArray(processedSpecs)) {
+          // If it's an object, convert it to array format
+          processedSpecs = Object.entries(processedSpecs).map(([key, value]) => ({
+            key: key.trim(),
+            value: value.toString().trim()
+          }));
         }
       } catch (error) {
         // If not JSON, treat as key-value pairs separated by newlines
-        specifications.split('\n').forEach(line => {
-          const [key, ...valueParts] = line.split(':');
-          if (key && valueParts.length > 0) {
-            processedSpecs.set(key.trim(), valueParts.join(':').trim());
-          }
-        });
+        processedSpecs = specifications.split('\n')
+          .map(line => {
+            const [key, ...valueParts] = line.split(':');
+            if (key && valueParts.length > 0) {
+              return {
+                key: key.trim(),
+                value: valueParts.join(':').trim()
+              };
+            }
+            return null;
+          })
+          .filter(spec => spec !== null);
       }
+    } else if (Array.isArray(specifications)) {
+      processedSpecs = specifications;
     } else if (typeof specifications === 'object' && specifications !== null) {
-      Object.entries(specifications).forEach(([key, value]) => {
-        processedSpecs.set(key, value);
-      });
+      processedSpecs = Object.entries(specifications).map(([key, value]) => ({
+        key: key.trim(),
+        value: value.toString().trim()
+      }));
     }
     
     console.log('📋 Processed specifications:', processedSpecs);
@@ -254,19 +265,13 @@ const createProduct = async (req, res) => {
       }
     }
 
-    // Ensure we always send a response
-    if (!res.headersSent) {
-      res.status(500).json({
-        success: false,
-        message: "Error creating product",
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
+    // Pass error to express error handler
+    next(error);
   }
 };
 
 // Update product (Admin only)
-const updateProduct = async (req, res) => {
+const updateProduct = async (req, res, next) => {
   try {
     // Debug logging
     console.log('📝 Update Product Request Body:', req.body);
@@ -371,33 +376,45 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Process tags
-    const processedTags = typeof tags === 'string' 
-      ? tags.split(',').map(tag => tag.trim()).filter(Boolean)
-      : Array.isArray(tags) ? tags : existingProduct.tags;
+    // We don't need tags processing anymore since we removed tags from the schema
 
-    // Process specifications (parse JSON if string)
-    let processedSpecs = existingProduct.specifications || {};
+    // Process specifications
+    let processedSpecs = existingProduct.specifications || [];
     if (specifications) {
-      let parsedSpecs = specifications;
       if (typeof specifications === 'string') {
         try {
-          parsedSpecs = JSON.parse(specifications);
-          console.log('📋 Update: Parsed specifications from JSON:', parsedSpecs);
+          // Try to parse as JSON first
+          processedSpecs = JSON.parse(specifications);
+          if (!Array.isArray(processedSpecs)) {
+            // If it's an object, convert it to array format
+            processedSpecs = Object.entries(processedSpecs).map(([key, value]) => ({
+              key: key.trim(),
+              value: value.toString().trim()
+            }));
+          }
         } catch (error) {
           console.log('❌ Update: Error parsing specifications JSON:', error.message);
-          parsedSpecs = {};
+          // If parsing fails, try to process as newline-separated key-value pairs
+          processedSpecs = specifications.split('\n')
+            .map(line => {
+              const [key, ...valueParts] = line.split(':');
+              if (key && valueParts.length > 0) {
+                return {
+                  key: key.trim(),
+                  value: valueParts.join(':').trim()
+                };
+              }
+              return null;
+            })
+            .filter(spec => spec !== null);
         }
-      } else {
-        console.log('📋 Update: Specifications received as object:', parsedSpecs);
-      }
-      
-      if (parsedSpecs && typeof parsedSpecs === 'object') {
-        processedSpecs = {
-          material: parsedSpecs.material || processedSpecs.material || '',
-          dimensions: parsedSpecs.dimensions || processedSpecs.dimensions || '',
-          warranty: parsedSpecs.warranty || processedSpecs.warranty || ''
-        };
+      } else if (Array.isArray(specifications)) {
+        processedSpecs = specifications;
+      } else if (typeof specifications === 'object' && specifications !== null) {
+        processedSpecs = Object.entries(specifications).map(([key, value]) => ({
+          key: key.trim(),
+          value: value.toString().trim()
+        }));
       }
     }
     
@@ -413,6 +430,10 @@ const updateProduct = async (req, res) => {
       category: category || existingProduct.category,
       status: status || existingProduct.status,
       specifications: processedSpecs,
+      features: Array.isArray(req.body.features) ? req.body.features : 
+               (typeof req.body.features === 'string' ? 
+                req.body.features.split('\n').map(f => f.trim()).filter(Boolean) : 
+                existingProduct.features),
       warranty: warranty ? warranty.trim() : existingProduct.warranty,
       minOrderQuantity: minOrderQuantity && minOrderQuantity !== '' ? parseInt(minOrderQuantity) : existingProduct.minOrderQuantity,
       featured: featured !== undefined ? (featured === 'true' || featured === true) : existingProduct.featured,
@@ -436,26 +457,28 @@ const updateProduct = async (req, res) => {
       data: { product: updatedProduct }
     });
   } catch (error) {
-    console.error("Update product error:", error);
+    console.error("❌ Update product error:", error);
+    console.error("❌ Error stack:", error.stack);
     
     // Clean up uploaded images if update fails
     const uploadedFiles = req.files && req.files.images ? req.files.images : [];
     if (uploadedFiles.length > 0) {
+      console.log('🧹 Cleaning up uploaded images...');
       for (const file of uploadedFiles) {
         try {
           const publicId = extractPublicId(file.path);
-          await deleteImage(publicId);
+          if (publicId) {
+            await deleteImage(publicId);
+            console.log('🗑️ Cleaned up image:', publicId);
+          }
         } catch (cleanupError) {
-          console.error("Error cleaning up image:", cleanupError);
+          console.error("❌ Error cleaning up image:", cleanupError);
         }
       }
     }
 
-    res.status(500).json({
-      success: false,
-      message: "Error updating product",
-      error: error.message
-    });
+    // Pass error to express error handler
+    next(error);
   }
 };
 
