@@ -38,7 +38,15 @@ const corsOptions = {
       'http://127.0.0.1:5173'
     ];
     
-    // Only log CORS issues in development and only log blocked requests
+    // In production, also allow Render's domain
+    if (process.env.NODE_ENV === 'production') {
+      allowedOrigins.push(
+        process.env.RENDER_EXTERNAL_URL,
+        'https://*.render.com'
+      );
+    }
+    
+    // Only log CORS issues in development
     const isDev = process.env.NODE_ENV === 'development';
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -46,15 +54,28 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      // Only log blocked origins
-      if (isDev) {
-        console.log(`⚠️ CORS blocked origin: ${origin}`);
+    // In production, be more permissive with subdomains
+    if (process.env.NODE_ENV === 'production') {
+      const isAllowedDomain = allowedOrigins.some(allowed => {
+        if (allowed.includes('*')) {
+          const pattern = new RegExp('^' + allowed.replace('*', '.*') + '$');
+          return pattern.test(origin);
+        }
+        return allowed === origin;
+      });
+      
+      if (isAllowedDomain) {
+        return callback(null, true);
       }
-      callback(new Error('Not allowed by CORS'));
+    } else if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    
+    // Only log blocked origins in development
+    if (isDev) {
+      console.log(`⚠️ CORS blocked origin: ${origin}`);
+    }
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

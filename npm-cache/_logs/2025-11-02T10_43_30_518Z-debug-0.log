@@ -1,0 +1,31 @@
+0 verbose cli /opt/homebrew/Cellar/node/24.2.0/bin/node /opt/homebrew/bin/npm
+1 info using npm@11.3.0
+2 info using node@v24.2.0
+3 silly config load:file:/opt/homebrew/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/faizalshaikh/Desktop/ambika/backend/.npmrc
+5 silly config load:file:/Users/faizalshaikh/.npmrc
+6 silly config load:file:/opt/homebrew/etc/npmrc
+7 verbose title npm run logs:error
+8 verbose argv "run" "logs:error"
+9 verbose logfile logs-max:10 dir:/Users/faizalshaikh/Desktop/ambika/backend/npm-cache/_logs/2025-11-02T10_43_30_518Z-
+10 verbose logfile /Users/faizalshaikh/Desktop/ambika/backend/npm-cache/_logs/2025-11-02T10_43_30_518Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose stack Error: Missing script: "logs:error"
+12 verbose stack
+12 verbose stack To see a list of scripts, run:
+12 verbose stack   npm run
+12 verbose stack     at #run (/opt/homebrew/lib/node_modules/npm/lib/commands/run-script.js:115:13)
+12 verbose stack     at async RunScript.exec (/opt/homebrew/lib/node_modules/npm/lib/commands/run-script.js:44:7)
+12 verbose stack     at async Npm.exec (/opt/homebrew/lib/node_modules/npm/lib/npm.js:208:9)
+12 verbose stack     at async module.exports (/opt/homebrew/lib/node_modules/npm/lib/cli/entry.js:67:5)
+13 error Missing script: "logs:error"
+13 error
+13 error To see a list of scripts, run:
+13 error   npm run
+14 verbose cwd /Users/faizalshaikh/Desktop/ambika/backend
+15 verbose os Darwin 24.6.0
+16 verbose node v24.2.0
+17 verbose npm  v11.3.0
+18 verbose exit 1
+19 verbose code 1
+20 error A complete log of this run can be found in: /Users/faizalshaikh/Desktop/ambika/backend/npm-cache/_logs/2025-11-02T10_43_30_518Z-debug-0.log
