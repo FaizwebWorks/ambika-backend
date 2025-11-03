@@ -373,6 +373,80 @@ exports.getUserOrderStats = async (req, res) => {
   }
 };
 
+// Verify UPI Payment
+exports.verifyUPIPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { upiTransactionId, upiId, upiProvider } = req.body;
+
+    const order = await Order.findById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Verify if the user owns this order
+    if (order.customer.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied"
+      });
+    }
+
+    // Update payment details
+    order.payment.status = 'completed';
+    order.payment.transactionId = upiTransactionId;
+    order.payment.upiTransactionId = upiTransactionId;
+    order.payment.upiId = upiId;
+    order.payment.upiProvider = upiProvider;
+    order.payment.paidAt = new Date();
+    
+    // Update order status
+    order.status = 'confirmed';
+    order.statusHistory.push({
+      status: 'confirmed',
+      updatedAt: new Date(),
+      note: 'Payment completed via UPI'
+    });
+
+    await order.save();
+
+    // Update product stock after successful payment
+    for (const item of order.items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: -item.quantity } }
+      );
+    }
+
+    // Create notification for payment received
+    try {
+      await NotificationService.createPaymentNotification(order, {
+        method: 'upi',
+        transactionId: upiTransactionId
+      });
+    } catch (notificationError) {
+      console.error("Error creating payment notification:", notificationError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "UPI payment verified successfully",
+      data: order
+    });
+
+  } catch (error) {
+    console.error("Verify UPI payment error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error verifying UPI payment"
+    });
+  }
+};
+
 // Update payment status (for payment gateway webhook)
 exports.updatePaymentStatus = async (req, res) => {
   try {

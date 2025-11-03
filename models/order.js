@@ -69,7 +69,7 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: {
       type: String,
-      enum: ["cod", "online", "bank_transfer", "cheque", "stripe", "stripe_card", "stripe_checkout"],
+      enum: ["cod", "upi"],
       default: "cod"
     },
     status: {
@@ -79,13 +79,10 @@ const orderSchema = new mongoose.Schema({
     },
     transactionId: String,
     paidAt: Date,
-    // Razorpay fields
-    // razorpayOrderId: String,
-    // razorpayPaymentId: String,
-    // Stripe fields
-    stripePaymentIntentId: String,
-    stripeSessionId: String,
-    stripeCustomerId: String
+    // UPI fields
+    upiTransactionId: String,
+    upiId: String,
+    upiProvider: String
   },
   status: {
     type: String,
@@ -93,12 +90,7 @@ const orderSchema = new mongoose.Schema({
     default: "pending"
   },
   shipping: {
-    address: { type: String }, // Changed from object to string
-    method: {
-      type: String,
-      enum: ["standard", "express", "overnight"],
-      default: "standard"
-    },
+    address: { type: String },
     trackingNumber: String,
     estimatedDelivery: Date,
     shippedAt: Date,

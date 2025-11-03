@@ -16,6 +16,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const upiPaymentRoutes = require('./routes/upiPaymentRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -33,6 +34,9 @@ const corsOptions = {
     const allowedOrigins = [
       'https://ambika-international.vercel.app',
       'https://ambika-frontend.vercel.app',
+      'https://ambika-international.com',        // Add your Hostinger domain
+      'https://www.ambika-international.com',    // Add www subdomain
+      'https://api.ambika-international.com',    // Add API subdomain
       'http://localhost:5173',
       'http://localhost:3000',
       'http://127.0.0.1:5173'
@@ -104,6 +108,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/upi-payments', upiPaymentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
