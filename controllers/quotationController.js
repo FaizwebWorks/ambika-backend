@@ -23,13 +23,17 @@ exports.createQuotationRequest = async (req, res) => {
       product: productId,
       quantity,
       specifications,
-      notes
+      notes,
+      status: 'pending'
     });
 
     // Populate product details
     const populatedQuotation = await QuotationRequest.findById(quotation._id)
       .populate("product", "title images price")
       .populate("customer", "name email phone businessDetails");
+
+    // Create notification for admin
+    await NotificationService.createQuoteRequestNotification(quotation, user);
 
     // Send email notification to admin
     await emailService.sendQuotationRequestNotification(populatedQuotation);
@@ -108,10 +112,50 @@ exports.getAllQuotationRequests = async (req, res) => {
   }
 };
 
+exports.getQuotationById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const quotation = await QuotationRequest.findById(id)
+      .populate("customer", "name email phone businessDetails")
+      .populate("product", "title images price");
+
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: "Quotation request not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        quotation: {
+          ...quotation.toObject(),
+          customerName: quotation.customer.name,
+          customerEmail: quotation.customer.email,
+          customerPhone: quotation.customer.phone,
+          productName: quotation.product.title,
+          message: quotation.notes
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get quotation by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching quotation details"
+    });
+  }
+};
+
 exports.respondToQuotation = async (req, res) => {
   try {
     const { id } = req.params;
     const { status, unitPrice, validityDays = 7, adminNotes } = req.body;
+
+    console.log('Responding to quotation:', { id, status, unitPrice, validityDays, adminNotes });
 
     const quotation = await QuotationRequest.findById(id);
     if (!quotation) {
@@ -121,19 +165,27 @@ exports.respondToQuotation = async (req, res) => {
       });
     }
 
+    // Validate status
+    if (!["pending", "approved", "quoted", "rejected", "expired"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status value"
+      });
+    }
+
     // Update quotation
     quotation.status = status;
     quotation.adminNotes = adminNotes;
     
-    if (status === "quoted") {
+    if (status === "approved" || status === "quoted") {
       quotation.quotedPrice = {
-        unitPrice,
-        totalPrice: unitPrice * quotation.quantity,
+        unitPrice: unitPrice || quotation.product.price,
+        totalPrice: (unitPrice || quotation.product.price) * quotation.quantity,
         validUntil: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000)
       };
     }
 
-    await quotation.save();
+    const savedQuotation = await quotation.save();
 
     // Send email notification to customer
     const populatedQuotation = await QuotationRequest.findById(id)
@@ -151,7 +203,8 @@ exports.respondToQuotation = async (req, res) => {
     console.error("Respond to quotation error:", error);
     res.status(500).json({
       success: false,
-      message: "Error responding to quotation"
+      message: "Error responding to quotation",
+      error: error.message
     });
   }
 };

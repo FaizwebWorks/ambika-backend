@@ -406,6 +406,31 @@ class EmailService {
     });
   }
 
+  // Send quotation request notification to admin
+  async sendQuotationRequestNotification(quotation) {
+    const adminEmails = process.env.ADMIN_EMAILS 
+      ? process.env.ADMIN_EMAILS.split(',')
+      : ['admin@ambikab2b.com'];
+
+    const variables = {
+      customerName: quotation.customer.name,
+      businessName: quotation.customer.businessDetails?.name || 'N/A',
+      productTitle: quotation.product.title,
+      quantity: quotation.quantity,
+      specifications: quotation.specifications || 'N/A',
+      customerPhone: quotation.customer.phone || 'N/A',
+      customerEmail: quotation.customer.email,
+      timestamp: new Date().toLocaleString()
+    };
+
+    return this.sendEmail({
+      to: adminEmails,
+      subject: `New Quotation Request - ${quotation.product.title}`,
+      template: 'quotation_request',
+      variables
+    });
+  }
+
   // Test email configuration
   async testEmailConfiguration() {
     try {

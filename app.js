@@ -20,6 +20,7 @@ const upiPaymentRoutes = require('./routes/upiPaymentRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const quotationRoutes = require('./routes/quotationRoutes');
 
 const app = express();
 
@@ -112,6 +113,7 @@ app.use('/api/upi-payments', upiPaymentRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/quotations', quotationRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: 'Ambika International API Server', status: 'running' });

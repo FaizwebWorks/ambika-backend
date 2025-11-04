@@ -2,33 +2,63 @@ const Notification = require("../models/notification");
 
 class NotificationService {
   
-  // Create notification for new quote request
-  static async createQuoteRequestNotification(quoteRequest, user) {
+  // Create a general notification
+  static async createNotification({
+    type,
+    title,
+    message,
+    data = {},
+    priority = 'medium',
+    forAdmin = false,
+    user = 'System'
+  }) {
     try {
-      const totalValue = quoteRequest.totalEstimatedValue || 0;
-      const itemCount = quoteRequest.items?.length || 0;
+      const notification = await Notification.create({
+        type,
+        title,
+        message,
+        data,
+        priority,
+        forAdmin,
+        user,
+        isRead: false,
+        createdAt: new Date()
+      });
       
-      const notification = await Notification.createNotification({
+      return notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  }
+
+  // Create notification for new quote request
+  static async createQuoteRequestNotification(quotation, user) {
+    try {
+      const notification = await Notification.create({
         type: 'quote_request',
-        title: 'New Quote Request',
-        message: `${user.company || user.name} requested a quote for ${itemCount} item(s) worth ₹${totalValue.toLocaleString()}`,
-        user: user.company || user.name,
-        priority: quoteRequest.priority?.toLowerCase() || 'medium',
+        title: 'New Quotation Request',
+        message: `${user.name} from ${user.businessDetails?.name || 'Business'} requested quotation for ${quotation.quantity} units`,
+        user: user.name,
+        priority: 'high',
         data: {
-          quoteId: quoteRequest._id,
-          customerId: user._id,
-          customerName: user.company || user.name,
-          totalValue: totalValue,
-          itemCount: itemCount,
-          urgency: quoteRequest.items[0]?.urgency || 'Standard'
+          quotationId: quotation._id,
+          productId: quotation.product,
+          customerPhone: user.phone,
+          customerEmail: user.email,
+          businessName: user.businessDetails?.name,
+          quantity: quotation.quantity,
+          specifications: quotation.specifications || 'Not specified'
         },
         relatedModel: 'QuoteRequest',
-        relatedId: quoteRequest._id
+        relatedId: quotation._id,
+        isGeneral: true
       });
       
       return notification;
     } catch (error) {
       console.error('Error creating quote request notification:', error);
+      throw error;
     }
   }
 
