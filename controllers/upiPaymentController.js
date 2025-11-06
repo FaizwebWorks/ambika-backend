@@ -125,10 +125,18 @@ class UPIPaymentController {
             }
 
             // Check if payment is already verified
-            if (order.payment.status === 'completed') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Payment already verified'
+            if (order.payment && order.payment.status === 'completed') {
+                // If payment is already completed, return success with the order details
+                return res.status(200).json({
+                    success: true,
+                    message: 'Payment already verified',
+                    order: {
+                        id: order._id,
+                        orderNumber: order.orderNumber,
+                        status: order.status,
+                        payment: order.payment,
+                        amount: order.pricing.total
+                    }
                 });
             }
 
@@ -138,7 +146,7 @@ class UPIPaymentController {
                 method: 'upi',
                 status: 'completed',
                 transactionId: transactionId,
-                upiTransactionId: upiTransactionId,
+                upiTransactionId: upiTransactionId || 'AUTO_VERIFIED',
                 upiId: upiId,
                 paidAt: new Date()
             };
