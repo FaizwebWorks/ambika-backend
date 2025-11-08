@@ -48,4 +48,4 @@ jobs:
       run: |
         echo "Waiting for deployment to complete..."
         sleep 60  # Give Render some time to deploy
-        curl -f https://${{ secrets.RENDER_SERVICE_URL }}/api/health || exit 1
+        curl -f https://ambika-api.onrender.com/api/health || exit 1
