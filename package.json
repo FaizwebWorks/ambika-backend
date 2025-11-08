@@ -4,8 +4,9 @@
   "description": "Ambika International Backend API",
   "main": "server.js",
   "scripts": {
-    "start:prod": "NODE_ENV=production node server.js",
-    "start": "NODE_ENV=production node server.js",
+    "start:prod": "NODE_ENV=production node --optimize_for_size --max_old_space_size=460 server.js",
+    "start": "NODE_ENV=production node --optimize_for_size --max_old_space_size=460 server.js",
+    "start:cluster": "CLUSTER_MODE=true NODE_ENV=production node --optimize_for_size --max_old_space_size=460 server.js",
     "dev": "NODE_ENV=development nodemon server.js",
     "health": "curl -f http://localhost:3000/api/health || exit 1"
   },

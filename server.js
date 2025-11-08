@@ -5,7 +5,8 @@ const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
 const CLUSTER_MODE = process.env.CLUSTER_MODE === 'true';
-const numCPUs = os.cpus().length;
+// Optimize worker count for Render's memory constraints
+const numCPUs = process.env.NODE_ENV === 'production' ? 2 : Math.min(os.cpus().length, 4);
 
 if (CLUSTER_MODE && cluster.isMaster) {
   logger.info(`Master ${process.pid} is running`);

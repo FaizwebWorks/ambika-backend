@@ -227,10 +227,7 @@ const DEFAULTS = {
 
 // API endpoints (for external services)
 const EXTERNAL_APIS = {
-  STRIPE: {
-    BASE_URL: 'https://api.stripe.com/v1',
-    WEBHOOK_ENDPOINT: '/webhooks/stripe'
-  },
+
   CLOUDINARY: {
     BASE_URL: 'https://api.cloudinary.com/v1_1'
   }

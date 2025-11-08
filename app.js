@@ -26,8 +26,35 @@ const app = express();
 
 connectDB();
 
-app.use(compression());
-app.use(helmet());
+// Enable aggressive compression
+app.use(compression({
+  level: 6,
+  threshold: 0,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+
+// Enhanced security with Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", 'https:', 'wss:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'", 'data:', 'https:'],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // CORS configuration for credentials
 const corsOptions = {
@@ -94,8 +121,20 @@ app.use(cors(corsOptions));
 // Handle preflight requests explicitly
 app.options('*', cors(corsOptions));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Optimize request body size limits
+app.use(express.json({ 
+  limit: '5mb',
+  strict: true,
+  type: 'application/json',
+  verify: (req, res, buf) => {
+    try { JSON.parse(buf); } catch (e) { buf = null; }
+  }
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '5mb',
+  parameterLimit: 1000
+}));
 
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 

@@ -3,14 +3,17 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      maxPoolSize: 3,
+      maxPoolSize: process.env.NODE_ENV === 'production' ? 5 : 3,
       minPoolSize: 1,
-      maxIdleTimeMS: 60000,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000,
+      maxIdleTimeMS: 30000, // Reduced idle time
+      serverSelectionTimeoutMS: 5000, // Faster timeout
+      socketTimeoutMS: 30000, // Reduced socket timeout
+      connectTimeoutMS: 5000, // Faster connect timeout
       retryWrites: true,
-      writeConcern: { w: 'majority' }
+      writeConcern: { w: 'majority' },
+      // Enable caching for better performance
+      bufferCommands: false,
+      autoIndex: process.env.NODE_ENV !== 'production'
     });
     
     if (process.env.NODE_ENV === 'development') {

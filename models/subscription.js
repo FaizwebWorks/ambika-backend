@@ -38,10 +38,7 @@ const subscriptionSchema = new mongoose.Schema(
       type: Date,
       required: true
     },
-    // Razorpay payment details
-    // razorpayOrderId: String,
-    // razorpayPaymentId: String,
-    // razorpaySignature: String,
+
     paymentStatus: {
       type: String,
       enum: ["pending", "completed", "failed"],
@@ -65,7 +62,7 @@ const subscriptionSchema = new mongoose.Schema(
       },
       amount: Number,
       status: String,
-      // razorpayPaymentId: String,
+
       description: String
     }]
   },

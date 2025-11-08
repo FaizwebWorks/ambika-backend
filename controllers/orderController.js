@@ -9,9 +9,9 @@ exports.createOrder = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
+      return res.status(400).json({
+        success: false,
+        errors: errors.array(),
       });
     }
 
@@ -21,7 +21,7 @@ exports.createOrder = async (req, res) => {
       shipping,
       payment,
       notes,
-      pricing // Allow pricing to be passed for consistency
+      pricing, // Allow pricing to be passed for consistency
     } = req.body;
 
     // Validate items and calculate pricing
@@ -30,18 +30,18 @@ exports.createOrder = async (req, res) => {
 
     for (const item of items) {
       const product = await Product.findById(item.product);
-      
+
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: `Product with ID ${item.product} not found`
+          message: `Product with ID ${item.product} not found`,
         });
       }
 
       if (product.stock < item.quantity) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for product ${product.title}`
+          message: `Insufficient stock for product ${product.title}`,
         });
       }
 
@@ -54,12 +54,12 @@ exports.createOrder = async (req, res) => {
         productInfo: {
           title: product.title,
           price: itemPrice,
-          image: product.images[0] || ''
+          image: product.images[0] || "",
         },
         quantity: item.quantity,
         price: itemPrice,
         size: item.size,
-        variants: item.variants || []
+        variants: item.variants || [],
       });
     }
 
@@ -68,28 +68,30 @@ exports.createOrder = async (req, res) => {
     if (pricing) {
       finalPricing = pricing;
     } else {
-  const tax = 0; // GST disabled
-      const shippingCost = shipping?.method === 'express' ? 150 : 
-                          shipping?.method === 'priority' ? 300 : 0;
+      const tax = 0; // GST disabled
+      const shippingCost =
+        shipping?.method === "express"
+          ? 150
+          : shipping?.method === "priority"
+          ? 300
+          : 0;
       finalPricing = {
         subtotal,
         tax,
         shipping: shippingCost,
-  total: subtotal + shippingCost // tax removed
+        total: subtotal + shippingCost, // tax removed
       };
     }
 
-    // Normalize payment method for Stripe variations
-    let paymentMethod = payment?.method || 'cod';
-    if (paymentMethod === 'stripe_card' || paymentMethod === 'stripe_checkout') {
-      paymentMethod = 'stripe';
-    }
+    let paymentMethod = payment?.method || "cod";
 
     // Generate order number manually to ensure it's set
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const random = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, "0");
     const orderNumber = `AMB${year}${month}${random}`;
 
     // Create order
@@ -99,44 +101,51 @@ exports.createOrder = async (req, res) => {
       customerInfo: customerInfo || {
         name: req.user.name || req.user.username,
         email: req.user.email,
-        phone: req.user.phone || ''
+        phone: req.user.phone || "",
       },
       items: orderItems,
       pricing: finalPricing,
-      payment: { 
+      payment: {
         method: paymentMethod,
-        status: 'pending'
+        status: "pending",
       },
       shipping,
-      notes
+      notes,
     });
 
     // Only update stock if payment method is COD or if order is confirmed
-    if (paymentMethod === 'cod' || paymentMethod === 'bank_transfer') {
+    if (paymentMethod === "cod" || paymentMethod === "bank_transfer") {
       for (const item of items) {
         const product = await Product.findById(item.product);
-        
+
         // Update product stock and check for low stock
-        await Product.findByIdAndUpdate(
-          product._id,
-          { $inc: { stock: -item.quantity } }
-        );
+        await Product.findByIdAndUpdate(product._id, {
+          $inc: { stock: -item.quantity },
+        });
 
         // Check for low stock after updating
         const updatedProduct = await Product.findById(product._id);
-        if (updatedProduct.stock <= 10) { // Low stock threshold
+        if (updatedProduct.stock <= 10) {
+          // Low stock threshold
           try {
-            await NotificationService.createLowStockNotification(updatedProduct, updatedProduct.stock, 10);
+            await NotificationService.createLowStockNotification(
+              updatedProduct,
+              updatedProduct.stock,
+              10
+            );
           } catch (notificationError) {
-            console.error("Error creating low stock notification:", notificationError);
+            console.error(
+              "Error creating low stock notification:",
+              notificationError
+            );
           }
         }
       }
     }
 
     const populatedOrder = await Order.findById(order._id)
-      .populate('customer', 'name email')
-      .populate('items.product', 'title images');
+      .populate("customer", "name email")
+      .populate("items.product", "title images");
 
     // Create notification for new order
     try {
@@ -149,14 +158,13 @@ exports.createOrder = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: populatedOrder
+      data: populatedOrder,
     });
-
   } catch (error) {
     console.error("Create order error:", error);
     res.status(500).json({
       success: false,
-      message: "Error creating order"
+      message: "Error creating order",
     });
   }
 };
@@ -164,20 +172,16 @@ exports.createOrder = async (req, res) => {
 // Get user's orders
 exports.getUserOrders = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status
-    } = req.query;
+    const { page = 1, limit = 10, status } = req.query;
 
     const query = { customer: req.user.id };
-    
-    if (status && status !== 'all') {
+
+    if (status && status !== "all") {
       query.status = status;
     }
 
     const orders = await Order.find(query)
-      .populate('items.product', 'title images')
+      .populate("items.product", "title images")
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit));
@@ -191,16 +195,15 @@ exports.getUserOrders = async (req, res) => {
         pagination: {
           current: Number(page),
           pages: Math.ceil(total / Number(limit)),
-          total
-        }
-      }
+          total,
+        },
+      },
     });
-
   } catch (error) {
     console.error("Get user orders error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching orders"
+      message: "Error fetching orders",
     });
   }
 };
@@ -209,34 +212,36 @@ exports.getUserOrders = async (req, res) => {
 exports.getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('customer', 'name email phone')
-      .populate('items.product', 'title images description');
+      .populate("customer", "name email phone")
+      .populate("items.product", "title images description");
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     // Check if user owns this order or is admin
-    if (order.customer._id.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (
+      order.customer._id.toString() !== req.user.id &&
+      req.user.role !== "admin"
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: order
+      data: order,
     });
-
   } catch (error) {
     console.error("Get order error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching order"
+      message: "Error fetching order",
     });
   }
 };
@@ -249,7 +254,7 @@ exports.cancelOrder = async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
@@ -257,47 +262,45 @@ exports.cancelOrder = async (req, res) => {
     if (order.customer.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
 
     // Check if order can be cancelled
-    if (!['pending', 'confirmed'].includes(order.status)) {
+    if (!["pending", "confirmed"].includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: "Order cannot be cancelled at this stage"
+        message: "Order cannot be cancelled at this stage",
       });
     }
 
     // Restore product stock
     for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { stock: item.quantity } }
-      );
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: item.quantity },
+      });
     }
 
     // Update order status
-    order.status = 'cancelled';
+    order.status = "cancelled";
     order.statusHistory.push({
-      status: 'cancelled',
+      status: "cancelled",
       updatedAt: new Date(),
-      note: 'Cancelled by customer'
+      note: "Cancelled by customer",
     });
-    
+
     await order.save();
 
     res.status(200).json({
       success: true,
       message: "Order cancelled successfully",
-      data: order
+      data: order,
     });
-
   } catch (error) {
     console.error("Cancel order error:", error);
     res.status(500).json({
       success: false,
-      message: "Error cancelling order"
+      message: "Error cancelling order",
     });
   }
 };
@@ -308,26 +311,25 @@ exports.trackOrder = async (req, res) => {
     const { orderNumber } = req.params;
 
     const order = await Order.findOne({ orderNumber })
-      .populate('items.product', 'title images')
-      .select('orderNumber status shipping statusHistory createdAt');
+      .populate("items.product", "title images")
+      .select("orderNumber status shipping statusHistory createdAt");
 
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: order
+      data: order,
     });
-
   } catch (error) {
     console.error("Track order error:", error);
     res.status(500).json({
       success: false,
-      message: "Error tracking order"
+      message: "Error tracking order",
     });
   }
 };
@@ -341,34 +343,33 @@ exports.getUserOrderStats = async (req, res) => {
         $group: {
           _id: null,
           totalOrders: { $sum: 1 },
-          totalSpent: { $sum: '$pricing.total' },
+          totalSpent: { $sum: "$pricing.total" },
           pendingOrders: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
           },
           deliveredOrders: {
-            $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] }
-          }
-        }
-      }
+            $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] },
+          },
+        },
+      },
     ]);
 
     const result = stats[0] || {
       totalOrders: 0,
       totalSpent: 0,
       pendingOrders: 0,
-      deliveredOrders: 0
+      deliveredOrders: 0,
     };
 
     res.status(200).json({
       success: true,
-      data: result
+      data: result,
     });
-
   } catch (error) {
     console.error("Get user order stats error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching order statistics"
+      message: "Error fetching order statistics",
     });
   }
 };
@@ -380,11 +381,11 @@ exports.verifyUPIPayment = async (req, res) => {
     const { upiTransactionId, upiId, upiProvider } = req.body;
 
     const order = await Order.findById(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
@@ -392,41 +393,40 @@ exports.verifyUPIPayment = async (req, res) => {
     if (order.customer.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
-        message: "Access denied"
+        message: "Access denied",
       });
     }
 
     // Update payment details
-    order.payment.status = 'completed';
+    order.payment.status = "completed";
     order.payment.transactionId = upiTransactionId;
     order.payment.upiTransactionId = upiTransactionId;
     order.payment.upiId = upiId;
     order.payment.upiProvider = upiProvider;
     order.payment.paidAt = new Date();
-    
+
     // Update order status
-    order.status = 'confirmed';
+    order.status = "confirmed";
     order.statusHistory.push({
-      status: 'confirmed',
+      status: "confirmed",
       updatedAt: new Date(),
-      note: 'Payment completed via UPI'
+      note: "Payment completed via UPI",
     });
 
     await order.save();
 
     // Update product stock after successful payment
     for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.product,
-        { $inc: { stock: -item.quantity } }
-      );
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: -item.quantity },
+      });
     }
 
     // Create notification for payment received
     try {
       await NotificationService.createPaymentNotification(order, {
-        method: 'upi',
-        transactionId: upiTransactionId
+        method: "upi",
+        transactionId: upiTransactionId,
       });
     } catch (notificationError) {
       console.error("Error creating payment notification:", notificationError);
@@ -435,14 +435,13 @@ exports.verifyUPIPayment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "UPI payment verified successfully",
-      data: order
+      data: order,
     });
-
   } catch (error) {
     console.error("Verify UPI payment error:", error);
     res.status(500).json({
       success: false,
-      message: "Error verifying UPI payment"
+      message: "Error verifying UPI payment",
     });
   }
 };
@@ -453,37 +452,40 @@ exports.updatePaymentStatus = async (req, res) => {
     const { orderId, paymentId, status, signature } = req.body;
 
     // Verify payment signature here (implement based on your payment gateway)
-    
+
     const order = await Order.findById(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     // Update payment details
     order.payment.status = status;
     order.payment.transactionId = paymentId;
-    
-    if (status === 'completed') {
+
+    if (status === "completed") {
       order.payment.paidAt = new Date();
-      order.status = 'confirmed';
+      order.status = "confirmed";
       order.statusHistory.push({
-        status: 'confirmed',
+        status: "confirmed",
         updatedAt: new Date(),
-        note: 'Payment completed'
+        note: "Payment completed",
       });
 
       // Create notification for payment received
       try {
         await NotificationService.createPaymentNotification(order, {
           method: order.payment.method,
-          transactionId: paymentId
+          transactionId: paymentId,
         });
       } catch (notificationError) {
-        console.error("Error creating payment notification:", notificationError);
+        console.error(
+          "Error creating payment notification:",
+          notificationError
+        );
       }
     }
 
@@ -491,14 +493,13 @@ exports.updatePaymentStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Payment status updated successfully"
+      message: "Payment status updated successfully",
     });
-
   } catch (error) {
     console.error("Update payment status error:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating payment status"
+      message: "Error updating payment status",
     });
   }
 };
