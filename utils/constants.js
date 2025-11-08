@@ -255,6 +255,7 @@ const CORS_OPTIONS = {
     ? [
         'https://ambika-international-ixiy2810o-faizwebworks-projects.vercel.app',
         'https://ambika-international.vercel.app',
+        'https://ambika-frontend.vercel.app',
         process.env.FRONTEND_URL
       ].filter(Boolean)
     : ['http://localhost:3000', 'http://localhost:5173'],
