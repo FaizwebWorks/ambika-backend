@@ -16,9 +16,19 @@ class UPIPaymentService {
         transactionId,
         description = 'Payment to Ambika International'
     }) {
-        // Construct UPI URL with all parameters
+        // Calculate the service fee (1% of the amount) - This will be handled internally after payment
+        const serviceFee = parseFloat((amount * 0.01).toFixed(2));
+        const merchantAmount = parseFloat((amount - serviceFee).toFixed(2));
+        
+        // Single payment URL for the full amount
         const upiUrl = `upi://pay?pa=${this.merchantUPI}&pn=${encodeURIComponent(this.merchantName)}&am=${amount}&tn=${encodeURIComponent(description)}&tr=${transactionId}`;
-        return upiUrl;
+        
+        return {
+            upiUrl,
+            merchantAmount,
+            serviceFee,
+            totalAmount: amount
+        };
     }
 
     /**
@@ -56,24 +66,26 @@ class UPIPaymentService {
             // Generate transaction ID (you might want to use a more sophisticated method)
             const transactionId = `TXN_${Date.now()}_${orderId}`;
 
-            // Generate UPI payment link
-            const upiLink = this.generateUPILink({
+            // Generate UPI payment links
+            const paymentLinks = this.generateUPILink({
                 amount,
                 transactionId,
                 description
             });
 
-            // Generate QR code
-            const qrCode = await this.generateQRCode(upiLink);
+            // Generate single QR code for the full payment
+            const qrCode = await this.generateQRCode(paymentLinks.upiUrl);
 
             // Return payment details
             return {
                 success: true,
                 data: {
                     transactionId,
-                    amount,
-                    upiLink,
-                    qrCode,
+                    totalAmount: amount,
+                    merchantAmount: paymentLinks.merchantAmount,
+                    serviceFee: paymentLinks.serviceFee,
+                    upiLink: paymentLinks.upiUrl,
+                    qrCode: qrCode,
                     merchantUPI: this.merchantUPI,
                     merchantName: this.merchantName,
                     timestamp: new Date().toISOString(),
