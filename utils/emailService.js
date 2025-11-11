@@ -9,40 +9,57 @@ const logger = require('./logger');
 class EmailService {
   constructor() {
     this.transporter = null;
-    this.initializeTransporter();
+    this.initializationPromise = null;
+    // Kick off initialization in the background
+    this.ensureTransporter().catch((err) => {
+      logger.error('Email service bootstrap failed:', err.message);
+    });
+  }
+
+  async ensureTransporter() {
+    if (this.transporter) {
+      return this.transporter;
+    }
+
+    if (!this.initializationPromise) {
+      this.initializationPromise = this.initializeTransporter();
+    }
+
+    await this.initializationPromise;
+    return this.transporter;
+  }
+
+  validateConfig() {
+    const required = [];
+    if ((process.env.EMAIL_SERVICE || '').toLowerCase() === 'gmail') {
+      required.push('EMAIL_USER', 'EMAIL_PASS');
+    } else {
+      required.push('SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD');
+    }
+
+    const missing = required.filter((key) => !process.env[key] || process.env[key].trim() === '');
+    if (missing.length) {
+      throw new Error(`Missing email configuration for ${missing.join(', ')}`);
+    }
   }
 
   // Initialize email transporter
   async initializeTransporter() {
     try {
-      // Test mode or development fallback
-      if (process.env.TEST_EMAIL_MODE === 'true' || process.env.NODE_ENV === 'development') {
-        try {
-          // Try to create Ethereal test account
-          const testAccount = await nodemailer.createTestAccount();
-          this.transporter = nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
-            port: 587,
-            secure: false,
-            auth: {
-              user: testAccount.user,
-              pass: testAccount.pass
-            }
-          });
-          logger.info('Test email account created for development');
-          return;
-        } catch (testError) {
-          logger.warn('Failed to create test account, falling back to Gmail');
-        }
-      }
+      this.validateConfig();
 
-      // Gmail configuration
-      if (process.env.EMAIL_SERVICE === 'gmail') {
+      const useGmail = (process.env.EMAIL_SERVICE || '').toLowerCase() === 'gmail';
+
+      if (useGmail) {
+        const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
+        const port = Number(process.env.EMAIL_PORT || 465);
+        const secure = process.env.EMAIL_SECURE === 'true' || port === 465;
+
         this.transporter = nodemailer.createTransport({
           service: 'gmail',
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
+          host,
+          port,
+          secure,
           auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
@@ -50,13 +67,15 @@ class EmailService {
           debug: true,
           logger: true
         });
-      }
-      // SMTP configuration
-      else {
+      } else {
+        const host = process.env.SMTP_HOST;
+        const port = Number(process.env.SMTP_PORT || 587);
+        const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+
         this.transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: process.env.SMTP_PORT || 587,
-          secure: process.env.SMTP_SECURE === 'true',
+          host,
+          port,
+          secure,
           auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASSWORD
@@ -69,12 +88,9 @@ class EmailService {
       logger.info('Email transporter initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize email transporter:', error);
-      
-      // Fallback to console logging mode so the app keeps running
-      logger.warn('Email service disabled; messages will be logged to console until SMTP credentials are fixed');
       this.transporter = null;
-      this.initializationFailed = true;
-      return;
+      this.initializationPromise = null;
+      throw error;
     }
   }
 
@@ -169,29 +185,10 @@ class EmailService {
   // Send email
   async sendEmail({ to, subject, template, variables = {}, attachments = [] }) {
     try {
-      if (!this.transporter) {
-        await this.initializeTransporter();
-      }
+      await this.ensureTransporter();
 
-      // If still no transporter (development mode), just log and return success
       if (!this.transporter) {
-        console.log('\n📧 EMAIL (Development Mode):');
-        console.log(`To: ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(`Template: ${template}`);
-        if (variables.otp) {
-          console.log(`🔐 OTP: ${variables.otp}`);
-        }
-        if (this.initializationFailed) {
-          console.log('⚠️ SMTP disabled due to configuration/connection issues. Email was not sent.');
-        }
-        console.log('---\n');
-        
-        return {
-          success: true,
-          messageId: 'dev-mode-' + Date.now(),
-          devMode: true
-        };
+        throw new Error('Email transporter is not configured. Check SMTP credentials.');
       }
 
       const html = await this.loadTemplate(template, variables);
@@ -205,12 +202,6 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      
-      // If using test account, log the preview URL
-      if (this.transporter.options && this.transporter.options.host === 'smtp.ethereal.email') {
-        const previewUrl = nodemailer.getTestMessageUrl(result);
-        console.log(`📧 Test email sent! Preview: ${previewUrl}`);
-      }
       
       logger.info(`Email sent successfully to ${to}`, {
         messageId: result.messageId,
