@@ -7,6 +7,7 @@ class UPIPaymentController {
         // Bind methods to the instance
         this.generatePaymentRequest = this.generatePaymentRequest.bind(this);
         this.verifyPayment = this.verifyPayment.bind(this);
+        this.checkPaymentStatus = this.checkPaymentStatus.bind(this);
     }
 
     /**
@@ -49,12 +50,15 @@ class UPIPaymentController {
                 throw new Error(paymentRequest.error);
             }
 
-            // Update order with transaction details
-            order.paymentDetails = {
-                transactionId: paymentRequest.data.transactionId,
-                paymentMethod: 'UPI',
+            // Ensure payment sub-document exists and update it with UPI metadata
+            order.payment = {
+                ...(order.payment || {}),
+                method: 'upi',
                 status: 'pending',
-                timestamp: new Date()
+                transactionId: paymentRequest.data.transactionId,
+                upiTransactionId: null,
+                upiId: null,
+                paidAt: null
             };
             await order.save();
 
@@ -70,6 +74,71 @@ class UPIPaymentController {
         }
     }
 
+    async checkPaymentStatus(req, res) {
+        try {
+            const { orderId, transactionId } = req.body;
+
+            if (!orderId || !transactionId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields'
+                });
+            }
+
+            const order = await Order.findById(orderId);
+
+            if (!order) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Order not found'
+                });
+            }
+
+            if (order.customer.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to access this order'
+                });
+            }
+
+            const payment = order.payment || {};
+
+            let status = 'PENDING';
+            if (payment.status === 'completed' && payment.transactionId === transactionId) {
+                status = 'SUCCESS';
+            } else if (payment.status === 'failed') {
+                status = 'FAILED';
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    status,
+                    order: {
+                        id: order._id,
+                        orderNumber: order.orderNumber,
+                        status: order.status,
+                        amount: order.pricing.total
+                    },
+                    payment: {
+                        method: payment.method,
+                        status: payment.status,
+                        transactionId: payment.transactionId,
+                        upiTransactionId: payment.upiTransactionId,
+                        paidAt: payment.paidAt
+                    }
+                }
+            });
+        } catch (error) {
+            logger.error('UPI Payment Status Error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to check payment status',
+                error: error.message
+            });
+        }
+    }
+
     /**
      * Generate QR code for UPI collect request
      */
@@ -77,15 +146,44 @@ class UPIPaymentController {
         try {
             const { upiId, amount, orderId, transactionId } = req.body;
 
-            if (!upiId || !amount || !orderId || !transactionId) {
+            if (!amount || !orderId || !transactionId) {
                 return res.status(400).json({
                     success: false,
                     message: 'Missing required fields'
                 });
             }
 
+            const order = await Order.findById(orderId);
+
+            if (!order) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Order not found'
+                });
+            }
+
+            if (order.customer.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to access this order'
+                });
+            }
+
+            if (!order.payment || order.payment.transactionId !== transactionId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid transaction reference for this order'
+                });
+            }
+
+            const paymentLink = UPIPaymentService.generateUPILink({
+                amount: order.pricing.total,
+                transactionId,
+                description: `Order ${order.orderNumber || order._id}`
+            });
+
             // Create UPI collect URL
-            const upiUrl = `upi://collect?pa=${upiId}&pn=${encodeURIComponent(process.env.MERCHANT_NAME || 'Ambika International')}&am=${amount}&tn=${encodeURIComponent(`Order ${orderId}`)}&tr=${transactionId}`;
+            const upiUrl = paymentLink.upiUrl;
 
             // Generate QR code
             const qrCode = await UPIPaymentService.generateQRCode(upiUrl);
@@ -94,7 +192,10 @@ class UPIPaymentController {
                 success: true,
                 data: {
                     qrCode,
-                    upiUrl
+                    upiUrl,
+                    merchantUPI: UPIPaymentService.merchantUPI,
+                    amount: paymentLink.totalAmount,
+                    customerUpiId: upiId || null
                 }
             });
 
@@ -130,19 +231,27 @@ class UPIPaymentController {
                 return res.status(200).json({
                     success: true,
                     message: 'Payment already verified',
-                    order: {
-                        id: order._id,
-                        orderNumber: order.orderNumber,
-                        status: order.status,
-                        payment: order.payment,
-                        amount: order.pricing.total
+                    data: {
+                        order: {
+                            id: order._id,
+                            orderNumber: order.orderNumber,
+                            status: order.status,
+                            amount: order.pricing.total
+                        },
+                        payment: {
+                            status: order.payment.status,
+                            method: order.payment.method,
+                            transactionId: order.payment.transactionId,
+                            upiTransactionId: order.payment.upiTransactionId,
+                            paidAt: order.payment.paidAt
+                        }
                     }
                 });
             }
 
             // Update payment information
             order.payment = {
-                ...order.payment,
+                ...(order.payment || {}),
                 method: 'upi',
                 status: 'completed',
                 transactionId: transactionId,
@@ -166,18 +275,20 @@ class UPIPaymentController {
             res.status(200).json({
                 success: true,
                 message: 'Payment verified successfully',
-                order: {
-                    id: order._id,
-                    orderNumber: order.orderNumber,
-                    status: order.status,
+                data: {
+                    order: {
+                        id: order._id,
+                        orderNumber: order.orderNumber,
+                        status: order.status,
+                        amount: order.pricing.total
+                    },
                     payment: {
                         status: order.payment.status,
                         method: order.payment.method,
                         transactionId: order.payment.transactionId,
                         upiTransactionId: order.payment.upiTransactionId,
                         paidAt: order.payment.paidAt
-                    },
-                    amount: order.pricing.total
+                    }
                 }
             });
 

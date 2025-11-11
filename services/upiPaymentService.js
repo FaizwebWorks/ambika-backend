@@ -2,7 +2,7 @@ const QRCode = require('qrcode');
 
 class UPIPaymentService {
     constructor() {
-        this.merchantUPI = process.env.MERCHANT_UPI_ID || 'webworksbyfaiz@okicici'; // Replace with your actual UPI ID
+        this.merchantUPI = process.env.MERCHANT_UPI_ID || 'shaikhtk6-1@oksbi'; // Replace with your actual UPI ID
         this.merchantName = process.env.MERCHANT_NAME || 'Ambika International';
     }
 
@@ -16,18 +16,24 @@ class UPIPaymentService {
         transactionId,
         description = 'Payment to Ambika International'
     }) {
+        const normalizedAmount = parseFloat(amount);
+        if (Number.isNaN(normalizedAmount) || normalizedAmount <= 0) {
+            throw new Error('Invalid amount for UPI payment link');
+        }
+        const amountString = normalizedAmount.toFixed(2).replace(/\.00$/, '');
+
         // Calculate the service fee (1% of the amount) - This will be handled internally after payment
-        const serviceFee = parseFloat((amount * 0.01).toFixed(2));
-        const merchantAmount = parseFloat((amount - serviceFee).toFixed(2));
+        const serviceFee = parseFloat((normalizedAmount * 0.01).toFixed(2));
+        const merchantAmount = parseFloat((normalizedAmount - serviceFee).toFixed(2));
         
         // Single payment URL for the full amount
-        const upiUrl = `upi://pay?pa=${this.merchantUPI}&pn=${encodeURIComponent(this.merchantName)}&am=${amount}&tn=${encodeURIComponent(description)}&tr=${transactionId}`;
+        const upiUrl = `upi://pay?pa=${this.merchantUPI}&pn=${encodeURIComponent(this.merchantName)}&am=${amountString}&tn=${encodeURIComponent(description)}&tr=${transactionId}&cu=INR`;
         
         return {
             upiUrl,
             merchantAmount,
             serviceFee,
-            totalAmount: amount
+            totalAmount: normalizedAmount
         };
     }
 

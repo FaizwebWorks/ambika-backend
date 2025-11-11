@@ -70,14 +70,11 @@ class EmailService {
     } catch (error) {
       logger.error('Failed to initialize email transporter:', error);
       
-      // For development, don't throw error - just log it
-      if (process.env.NODE_ENV === 'development') {
-        logger.warn('Email service will work in console-only mode for development');
-        this.transporter = null;
-        return;
-      }
-      
-      throw new Error('Email service initialization failed');
+      // Fallback to console logging mode so the app keeps running
+      logger.warn('Email service disabled; messages will be logged to console until SMTP credentials are fixed');
+      this.transporter = null;
+      this.initializationFailed = true;
+      return;
     }
   }
 
@@ -184,6 +181,9 @@ class EmailService {
         console.log(`Template: ${template}`);
         if (variables.otp) {
           console.log(`🔐 OTP: ${variables.otp}`);
+        }
+        if (this.initializationFailed) {
+          console.log('⚠️ SMTP disabled due to configuration/connection issues. Email was not sent.');
         }
         console.log('---\n');
         
