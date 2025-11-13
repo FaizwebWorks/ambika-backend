@@ -8,7 +8,12 @@ const logger = require('./logger');
 
 class EmailService {
   constructor() {
-    this.provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
+    const configuredProvider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+    if (!configuredProvider && process.env.RESEND_API_KEY) {
+      this.provider = 'resend';
+    } else {
+      this.provider = configuredProvider || 'smtp';
+    }
     this.transporter = null;
     this.initializationPromise = null;
 
@@ -85,8 +90,8 @@ class EmailService {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
           },
-          debug: true,
-          logger: true
+          debug: process.env.EMAIL_SMTP_DEBUG === 'true',
+          logger: process.env.EMAIL_SMTP_DEBUG === 'true'
         });
       } else {
         const host = process.env.SMTP_HOST;
