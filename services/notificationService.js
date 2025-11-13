@@ -259,7 +259,7 @@ class NotificationService {
         isRead: true
       });
 
-      console.log(`Cleaned up ${result.deletedCount} old notifications`);
+  // console.log(`Cleaned up ${result.deletedCount} old notifications`);
       return result.deletedCount;
     } catch (error) {
       console.error('Error cleaning up old notifications:', error);

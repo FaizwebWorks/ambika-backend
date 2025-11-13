@@ -24,7 +24,7 @@ const getCart = async (req, res) => {
     if (validItems.length !== cart.items.length) {
       cart.items = validItems;
       await cart.save();
-      console.log(`Cleaned up ${cart.items.length - validItems.length} invalid cart items for user ${req.user.id}`);
+  // console.log(`Cleaned up ${cart.items.length - validItems.length} invalid cart items for user ${req.user.id}`);
     }
 
     res.json({
