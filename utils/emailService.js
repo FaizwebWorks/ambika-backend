@@ -8,15 +8,23 @@ const logger = require('./logger');
 
 class EmailService {
   constructor() {
+    this.provider = (process.env.EMAIL_PROVIDER || 'smtp').toLowerCase();
     this.transporter = null;
     this.initializationPromise = null;
-    // Kick off initialization in the background
-    this.ensureTransporter().catch((err) => {
-      logger.error('Email service bootstrap failed:', err.message);
-    });
+
+    if (this.provider !== 'resend') {
+      // Kick off transporter initialization in the background for SMTP-based providers
+      this.ensureTransporter().catch((err) => {
+        logger.error('Email service bootstrap failed:', err.message);
+      });
+    }
   }
 
   async ensureTransporter() {
+    if (this.provider === 'resend') {
+      return null;
+    }
+
     if (this.transporter) {
       return this.transporter;
     }
@@ -30,6 +38,15 @@ class EmailService {
   }
 
   validateConfig() {
+    if (this.provider === 'resend') {
+      const required = ['RESEND_API_KEY', 'EMAIL_FROM'];
+      const missing = required.filter((key) => !process.env[key] || process.env[key].trim() === '');
+      if (missing.length) {
+        throw new Error(`Missing email configuration for ${missing.join(', ')}`);
+      }
+      return;
+    }
+
     const required = [];
     if ((process.env.EMAIL_SERVICE || '').toLowerCase() === 'gmail') {
       required.push('EMAIL_USER', 'EMAIL_PASS');
@@ -45,6 +62,10 @@ class EmailService {
 
   // Initialize email transporter
   async initializeTransporter() {
+    if (this.provider === 'resend') {
+      return;
+    }
+
     try {
       this.validateConfig();
 
@@ -185,13 +206,17 @@ class EmailService {
   // Send email
   async sendEmail({ to, subject, template, variables = {}, attachments = [] }) {
     try {
+      const html = await this.loadTemplate(template, variables);
+
+      if (this.provider === 'resend') {
+        return await this.sendViaResend({ to, subject, html, attachments });
+      }
+
       await this.ensureTransporter();
 
       if (!this.transporter) {
         throw new Error('Email transporter is not configured. Check SMTP credentials.');
       }
-
-      const html = await this.loadTemplate(template, variables);
 
       const mailOptions = {
         from: `"${process.env.EMAIL_FROM_NAME || 'Ambika B2B'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
@@ -202,7 +227,7 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      
+
       logger.info(`Email sent successfully to ${to}`, {
         messageId: result.messageId,
         template,
@@ -217,6 +242,59 @@ class EmailService {
       logger.error('Failed to send email:', error);
       throw new Error('Failed to send email');
     }
+  }
+
+  async sendViaResend({ to, subject, html, attachments = [] }) {
+    this.validateConfig();
+
+    const apiKey = process.env.RESEND_API_KEY;
+    const fromAddress = `${process.env.EMAIL_FROM_NAME ? `${process.env.EMAIL_FROM_NAME} ` : ''}<${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+
+    const normalizedAttachments = attachments && attachments.length
+      ? attachments.map((attachment) => {
+          const content = attachment.content;
+          let encodedContent = content;
+          if (Buffer.isBuffer(content)) {
+            encodedContent = content.toString('base64');
+          }
+          return {
+            filename: attachment.filename,
+            content: encodedContent
+          };
+        })
+      : undefined;
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        html,
+        attachments: normalizedAttachments
+      })
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const errorMessage = result?.message || response.statusText || 'Resend API request failed';
+      throw new Error(errorMessage);
+    }
+
+    logger.info(`Email sent via Resend to ${to}`, {
+      messageId: result.id || result.message_id,
+      subject
+    });
+
+    return {
+      success: true,
+      messageId: result.id || result.message_id || result.messageId || 'resend-' + Date.now()
+    };
   }
 
   // Send welcome email
