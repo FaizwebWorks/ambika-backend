@@ -2,7 +2,7 @@ const QRCode = require('qrcode');
 
 class UPIPaymentService {
     constructor() {
-        this.merchantUPI = process.env.MERCHANT_UPI_ID || 'shaikhtk6-1@oksbi'; // Replace with your actual UPI ID
+        this.merchantUPI = process.env.MERCHANT_UPI_ID || '9023827460@slc'; // Replace with your actual UPI ID
         this.merchantName = process.env.MERCHANT_NAME || 'Ambika International';
     }
 
