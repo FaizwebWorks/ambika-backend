@@ -43,8 +43,9 @@ const getCategories = async (req, res) => {
     // Add product count to each category
     const categoriesWithProductCount = await Promise.all(
       categories.map(async (category) => {
-        const productCount = await Product.countDocuments({ 
-          category: category._id
+        const productCount = await Product.countDocuments({
+          category: category._id,
+          status: 'active'
         });
         return {
           ...category,
@@ -90,8 +91,9 @@ const getCategoryById = async (req, res) => {
     }
 
     // Get product count
-    const productCount = await Product.countDocuments({ 
-      category: category._id
+    const productCount = await Product.countDocuments({
+      category: category._id,
+      status: 'active'
     });
 
     res.json({

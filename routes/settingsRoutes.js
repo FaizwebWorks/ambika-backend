@@ -11,6 +11,8 @@ const {
   updateAdminProfile,
   uploadCompanyLogo,
   resetSettings
+  ,
+  updatePaymentSettings
 } = require("../controllers/settingsController");
 const { protect, admin } = require("../middleware/auth");
 const { upload } = require("../config/cloudinary");
@@ -27,6 +29,9 @@ router.put("/security", updateSecuritySettings);
 router.put("/system", updateSystemSettings);
 router.put("/business", updateBusinessSettings);
 router.post("/reset", resetSettings);
+
+// Update payment visibility
+router.put('/payments', updatePaymentSettings);
 
 // Profile routes
 router.get("/profile", getAdminProfile);

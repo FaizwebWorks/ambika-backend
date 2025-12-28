@@ -333,3 +333,33 @@ exports.resetSettings = async (req, res) => {
     });
   }
 };
+
+// Update payment visibility settings (UPI / COD)
+exports.updatePaymentSettings = async (req, res) => {
+  try {
+    const { payments } = req.body;
+    const userId = req.user.id;
+
+    const settings = await Settings.getInstance();
+
+    if (payments && typeof payments === 'object') {
+      settings.payments = { ...settings.payments, ...payments };
+    }
+
+    settings.lastUpdatedBy = userId;
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: 'Payment settings updated successfully',
+      data: settings
+    });
+  } catch (error) {
+    console.error('Error updating payment settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating payment settings',
+      error: error.message
+    });
+  }
+};

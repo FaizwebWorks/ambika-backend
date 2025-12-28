@@ -41,7 +41,7 @@ exports.getDashboardStats = async (req, res) => {
       ((currentMonthOrders.length - lastMonthOrders.length) / lastMonthOrders.length) * 100;
 
     // Get total counts
-    const totalProducts = await Product.countDocuments({ isActive: true });
+    const totalProducts = await Product.countDocuments({ status: 'active' });
     const totalUsers = await User.countDocuments({ role: 'user' });
 
     // Get recent orders
@@ -530,7 +530,7 @@ exports.getAdminCategories = async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 20,
+      limit = 10,
       search,
       sort = 'name',
       order = 'asc'
@@ -559,7 +559,7 @@ exports.getAdminCategories = async (req, res) => {
       categories.map(async (category) => {
         const productCount = await Product.countDocuments({ 
           category: category._id, 
-          isActive: true 
+          status: 'active'
         });
 
         // Get sales data for this category

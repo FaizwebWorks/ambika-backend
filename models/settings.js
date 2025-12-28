@@ -130,6 +130,18 @@ const settingsSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User"
     }
+    ,
+    // Payment visibility settings (which payment methods show on main website)
+    payments: {
+      upi: {
+        type: Boolean,
+        default: true
+      },
+      cod: {
+        type: Boolean,
+        default: true
+      }
+    }
   },
   { 
     timestamps: true,
