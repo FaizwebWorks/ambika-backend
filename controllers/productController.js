@@ -47,6 +47,33 @@ const getProducts = async (req, res) => {
     if (status) {
       query.status = status;
     }
+
+    // Filter by variant color or size (support multiple product shapes)
+    // Accepts query params: color, size
+    if (req.query.color) {
+      const color = req.query.color;
+      // match either: variants.color (object), variants array of { name, value }, or sizes array
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'variants.color': color },
+          { variants: { $elemMatch: { name: 'color', value: color } } },
+          { sizes: color }
+        ]
+      });
+    }
+
+    if (req.query.size) {
+      const size = req.query.size;
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { 'variants.size': size },
+          { variants: { $elemMatch: { name: 'size', value: size } } },
+          { sizes: size }
+        ]
+      });
+    }
     
     // Remove tags filter since we removed tags field
     
