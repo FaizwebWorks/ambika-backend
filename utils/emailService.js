@@ -1,6 +1,7 @@
 // Email service utility for sending various types of emails
 
 const nodemailer = require('nodemailer');
+const https = require('https');
 const path = require('path');
 const fs = require('fs').promises;
 const { EMAIL_TEMPLATES, ERROR_MESSAGES } = require('./constants');
@@ -251,7 +252,7 @@ class EmailService {
       };
     } catch (error) {
       logger.error('Failed to send email:', error);
-      throw new Error('Failed to send email');
+      throw new Error(`Failed to send email: ${error && error.message ? error.message : error}`);
     }
   }
 
@@ -284,30 +285,53 @@ class EmailService {
       }));
     }
 
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    // Use native https request to avoid relying on global `fetch` (not available on older Node versions)
+    const data = JSON.stringify(body);
+
+    const options = {
+      hostname: 'api.brevo.com',
+      port: 443,
+      path: '/v3/smtp/email',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
         'api-key': apiKey
-      },
-      body: JSON.stringify(body)
+      }
+    };
+
+    const result = await new Promise((resolve, reject) => {
+      const req = https.request(options, (res) => {
+        let raw = '';
+        res.on('data', (chunk) => raw += chunk);
+        res.on('end', () => {
+          let parsed = null;
+          try { parsed = JSON.parse(raw); } catch (e) { parsed = null; }
+
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ ok: true, body: parsed });
+          } else {
+            const errMsg = (parsed && (parsed.message || parsed.error)) || res.statusMessage || `HTTP ${res.statusCode}`;
+            reject(new Error(errMsg));
+          }
+        });
+      });
+
+      req.on('error', (err) => reject(err));
+      req.write(data);
+      req.end();
     });
 
-    const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      const errorMessage = result?.message || result?.error || response.statusText || 'Brevo API request failed';
-      throw new Error(errorMessage);
-    }
+    const parsed = result?.body || {};
 
     logger.info(`Email sent via Brevo to ${to}`, {
-      messageId: result?.messageId || result?.message_id,
+      messageId: parsed?.messageId || parsed?.message_id,
       subject
     });
 
     return {
       success: true,
-      messageId: result?.messageId || result?.message_id || 'brevo-' + Date.now()
+      messageId: parsed?.messageId || parsed?.message_id || 'brevo-' + Date.now()
     };
   }
 
