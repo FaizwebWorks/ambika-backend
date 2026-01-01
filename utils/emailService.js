@@ -9,11 +9,17 @@ const logger = require('./logger');
 class EmailService {
   constructor() {
     const configuredProvider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
-    if (!configuredProvider && process.env.RESEND_API_KEY) {
-      this.provider = 'resend';
+
+    // Prefer Brevo when API key is present. Fall back to configured provider or SMTP.
+    if (process.env.BREVO_API_KEY) {
+      this.provider = 'brevo';
+    } else if (configuredProvider) {
+      this.provider = configuredProvider;
     } else {
-      this.provider = configuredProvider || 'smtp';
+      this.provider = 'smtp';
     }
+
+    logger.info(`EmailService initialized with provider: ${this.provider}`);
     this.transporter = null;
     this.initializationPromise = null;
 
@@ -26,7 +32,7 @@ class EmailService {
   }
 
   async ensureTransporter() {
-    if (this.provider === 'resend') {
+    if (this.provider === 'brevo') {
       return null;
     }
 
@@ -43,8 +49,8 @@ class EmailService {
   }
 
   validateConfig() {
-    if (this.provider === 'resend') {
-      const required = ['RESEND_API_KEY', 'EMAIL_FROM'];
+    if (this.provider === 'brevo') {
+      const required = ['BREVO_API_KEY', 'EMAIL_FROM'];
       const missing = required.filter((key) => !process.env[key] || process.env[key].trim() === '');
       if (missing.length) {
         throw new Error(`Missing email configuration for ${missing.join(', ')}`);
@@ -67,7 +73,7 @@ class EmailService {
 
   // Initialize email transporter
   async initializeTransporter() {
-    if (this.provider === 'resend') {
+    if (this.provider === 'brevo') {
       return;
     }
 
@@ -213,8 +219,8 @@ class EmailService {
     try {
       const html = await this.loadTemplate(template, variables);
 
-      if (this.provider === 'resend') {
-        return await this.sendViaResend({ to, subject, html, attachments });
+      if (this.provider === 'brevo') {
+        return await this.sendViaBrevo({ to, subject, html, attachments });
       }
 
       await this.ensureTransporter();
@@ -250,55 +256,58 @@ class EmailService {
   }
 
   async sendViaResend({ to, subject, html, attachments = [] }) {
-    this.validateConfig();
+    // Resend provider support removed. Brevo is the preferred provider.
+    throw new Error('Resend provider is no longer supported. Use Brevo (BREVO_API_KEY) or SMTP instead.');
+  }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    const fromAddress = `${process.env.EMAIL_FROM_NAME ? `${process.env.EMAIL_FROM_NAME} ` : ''}<${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
+  async sendViaBrevo({ to, subject, html, attachments = [] }) {
+    // Validate presence of key
+    if (!process.env.BREVO_API_KEY) {
+      throw new Error('Missing BREVO_API_KEY');
+    }
 
-    const normalizedAttachments = attachments && attachments.length
-      ? attachments.map((attachment) => {
-          const content = attachment.content;
-          let encodedContent = content;
-          if (Buffer.isBuffer(content)) {
-            encodedContent = content.toString('base64');
-          }
-          return {
-            filename: attachment.filename,
-            content: encodedContent
-          };
-        })
-      : undefined;
+    const apiKey = process.env.BREVO_API_KEY;
+    const senderEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    const senderName = process.env.EMAIL_FROM_NAME || 'Ambika B2B';
 
-    const response = await fetch('https://api.resend.com/emails', {
+    const body = {
+      sender: { name: senderName, email: senderEmail },
+      to: Array.isArray(to) ? to.map(email => ({ email })) : [{ email: to }],
+      subject,
+      htmlContent: html
+    };
+
+    if (attachments && attachments.length) {
+      body.attachment = attachments.map(att => ({
+        name: att.filename,
+        content: Buffer.isBuffer(att.content) ? att.content.toString('base64') : att.content
+      }));
+    }
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
+        'api-key': apiKey
       },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: Array.isArray(to) ? to : [to],
-        subject,
-        html,
-        attachments: normalizedAttachments
-      })
+      body: JSON.stringify(body)
     });
 
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const errorMessage = result?.message || response.statusText || 'Resend API request failed';
+      const errorMessage = result?.message || result?.error || response.statusText || 'Brevo API request failed';
       throw new Error(errorMessage);
     }
 
-    logger.info(`Email sent via Resend to ${to}`, {
-      messageId: result.id || result.message_id,
+    logger.info(`Email sent via Brevo to ${to}`, {
+      messageId: result?.messageId || result?.message_id,
       subject
     });
 
     return {
       success: true,
-      messageId: result.id || result.message_id || result.messageId || 'resend-' + Date.now()
+      messageId: result?.messageId || result?.message_id || 'brevo-' + Date.now()
     };
   }
 

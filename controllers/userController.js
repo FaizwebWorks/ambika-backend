@@ -6,6 +6,9 @@ const NotificationService = require("../services/notificationService");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
+const crypto = require('crypto');
+const emailService = require('../utils/emailService');
+const PreUser = require('../models/preUser');
 
 // Register B2B user
 exports.registerB2B = async (req, res) => {
@@ -33,31 +36,30 @@ exports.registerB2B = async (req, res) => {
       annualRequirement
     } = req.body;
 
-    // Check if user exists
+    // Check if user exists in User or PreUser
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
+    const existingPreUser = await PreUser.findOne({ $or: [{ email }, { username }] });
+    if (existingUser || existingPreUser) {
       return res.status(400).json({
         success: false,
-        message:
-          existingUser.email === email
-            ? "Email already in use"
-            : "Username already taken",
+        message: existingUser
+          ? (existingUser.email === email ? 'Email already in use' : 'Username already taken')
+          : (existingPreUser.email === email ? 'A registration is already pending for this email. Please verify your email.' : 'Username already taken')
       });
     }
 
-    // Hash password
+    // Hash password and create PreUser entry
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create B2B user
-    const user = await User.create({
+    const token = crypto.randomBytes(32).toString('hex');
+    const preUser = await PreUser.create({
       username,
       email,
       password: hashedPassword,
       name: name || username,
-      phone,
-      customerType: "B2B",
-      approvalStatus: "pending",
+      customerType: 'B2B',
+      approvalStatus: 'pending',
       businessDetails: {
         companyName,
         businessType,
@@ -69,33 +71,34 @@ exports.registerB2B = async (req, res) => {
         businessEmail,
         annualRequirement,
         isVerified: false
-      }
+      },
+      emailVerificationToken: token,
+      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000
     });
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
-
-    // Create notification for B2B registration
     try {
-      await NotificationService.createB2BRegistrationNotification(user);
-    } catch (notificationError) {
-      console.error("Error creating B2B registration notification:", notificationError);
-      // Don't fail the registration if notification fails
+      const verifyUrl = `${process.env.BACKEND_URL || process.env.FRONTEND_URL}/api/users/verify-email?token=${token}`;
+      await emailService.sendEmail({
+        to: preUser.email,
+        subject: 'Verify your email - Ambika',
+        template: 'verify_email',
+        variables: { name: preUser.name || preUser.username, verifyUrl }
+      });
+    } catch (emailErr) {
+      console.error('Failed to send verification email:', emailErr);
     }
 
     res.status(201).json({
       success: true,
-      token,
-      message: "B2B registration successful. Your account is pending approval.",
+      message: "B2B registration received. Please verify your email to activate your account. Admin approval is still required.",
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        customerType: user.customerType,
-        approvalStatus: user.approvalStatus,
-        businessDetails: user.businessDetails
+        id: preUser._id,
+        username: preUser.username,
+        email: preUser.email,
+        name: preUser.name,
+        customerType: preUser.customerType,
+        approvalStatus: preUser.approvalStatus,
+        businessDetails: preUser.businessDetails
       },
     });
   } catch (error) {
@@ -118,46 +121,58 @@ exports.register = async (req, res) => {
 
     const { username, email, password, name } = req.body;
 
-    // Check if user exists
+    // Check if user exists in User or PreUser
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
+    const existingPreUser = await PreUser.findOne({ $or: [{ email }, { username }] });
+    if (existingUser || existingPreUser) {
       return res.status(400).json({
         success: false,
-        message:
-          existingUser.email === email
-            ? "Email already in use"
-            : "Username already taken",
+        message: existingUser
+          ? (existingUser.email === email ? 'Email already in use' : 'Username already taken')
+          : (existingPreUser.email === email ? 'A registration is already pending for this email. Please verify your email.' : 'Username already taken')
       });
     }
 
-    // Hash password
+    // Hash password and create PreUser entry
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    const user = await User.create({
+    const tokenStr = crypto.randomBytes(32).toString('hex');
+    const preUser = await PreUser.create({
       username,
       email,
       password: hashedPassword,
       name: name || username,
-      customerType: "B2C", // Default to B2C for regular registration
-      approvalStatus: "approved" // B2C users are auto-approved
+      customerType: 'B2C',
+      approvalStatus: 'pending',
+      emailVerificationToken: tokenStr,
+      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000
     });
 
-    // Generate token
-    const token = generateToken(user._id, user.role);
+    // Send verification email
+    try {
+      const verifyUrl = `${process.env.BACKEND_URL || process.env.FRONTEND_URL}/api/users/verify-email?token=${tokenStr}`;
+      await emailService.sendEmail({
+        to: preUser.email,
+        subject: 'Verify your email - Ambika',
+        template: 'verify_email',
+        variables: { name: preUser.name || preUser.username, verifyUrl }
+      });
+    } catch (emailErr) {
+      console.error('Failed to send verification email:', emailErr);
+    }
 
+    // Do not issue JWT until email is verified
     res.status(201).json({
       success: true,
-      token,
+      message: 'Registration received. Please verify your email (check your inbox).',
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        customerType: user.customerType,
-        approvalStatus: user.approvalStatus
+        id: preUser._id,
+        username: preUser.username,
+        email: preUser.email,
+        name: preUser.name,
+        customerType: preUser.customerType,
+        approvalStatus: preUser.approvalStatus
       },
     });
   } catch (error) {
@@ -211,6 +226,15 @@ exports.login = async (req, res) => {
         message: "Invalid credentials",
       });
     }
+
+    // Require email verification before allowing login
+    // if (!user.emailVerified) {
+    //   console.log(`[LOGIN] Email not verified for ${email}`);
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: 'Please verify your email before logging in. Check your inbox.'
+    //   });
+    // }
 
     // Generate token
     const tokenStartTime = Date.now();
@@ -330,6 +354,96 @@ const generateToken = (id, role) => {
   return jwt.sign({ userId: id, role }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
+};
+
+// Verify email controller
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Verification token missing' });
+    }
+    // First, try to find a PreUser with this token (preferred flow)
+    const preUser = await PreUser.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+
+    if (preUser) {
+      // Create final User from PreUser
+      const newUserData = {
+        username: preUser.username,
+        email: preUser.email,
+        password: preUser.password,
+        name: preUser.name,
+        customerType: preUser.customerType,
+        businessDetails: preUser.businessDetails || undefined,
+        emailVerified: true
+      };
+
+      // Decide approvalStatus: B2C => approved after verification, B2B => pending (admin approval)
+      if (preUser.customerType === 'B2C') {
+        newUserData.approvalStatus = 'approved';
+      } else {
+        newUserData.approvalStatus = 'pending';
+      }
+
+      const user = await User.create(newUserData);
+
+      // Remove PreUser entry
+      await PreUser.deleteOne({ _id: preUser._id });
+
+      // Send welcome email (non-blocking)
+      try {
+        await emailService.sendWelcomeEmail(user);
+      } catch (e) {
+        console.error('Welcome email failed:', e);
+      }
+
+      // Notify admin for B2B registrations
+      if (user.customerType === 'B2B') {
+        try {
+          await NotificationService.createB2BRegistrationNotification(user);
+        } catch (e) {
+          console.error('Admin notification failed:', e);
+        }
+      }
+
+      const redirect = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/verify-email?success=true` : null;
+      if (redirect) return res.redirect(302, redirect);
+
+      return res.json({ success: true, message: 'Email verified and account created' });
+    }
+
+    // Fallback: maybe token stored on User (older behavior)
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      const redirect = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/verify-email?success=false` : null;
+      if (redirect) return res.redirect(302, redirect);
+      return res.status(400).json({ success: false, message: 'Invalid or expired token' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    // Activate account for B2C users after verification
+    if (user.customerType === 'B2C') {
+      user.approvalStatus = 'approved';
+    }
+    await user.save();
+
+    const redirect = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/verify-email?success=true` : null;
+    if (redirect) return res.redirect(302, redirect);
+
+    res.json({ success: true, message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ success: false, message: 'Server error during email verification' });
+  }
 };
 
 // Get user wishlist

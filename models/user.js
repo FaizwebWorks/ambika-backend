@@ -144,6 +144,14 @@ const userSchema = new mongoose.Schema(
       default: 0
     },
     lastOTPRequest: Date
+    ,
+    // Email verification
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date
   },
   { timestamps: true }
 );

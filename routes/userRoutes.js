@@ -25,6 +25,9 @@ const { protect } = require("../middleware/auth");
 
 const router = express.Router();
 
+// Verify email route
+router.get('/verify-email', require('../controllers/userController').verifyEmail);
+
 // Register B2C user
 router.post(
   "/register",
